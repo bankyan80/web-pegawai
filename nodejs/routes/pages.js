@@ -416,10 +416,8 @@ router.get('/profil-pegawai', async (req, res, next) => {
       rows,
       records,
       actions: [
-        { act: 'detail', icon: 'fa-eye', label: 'Detail' },
-        { url: (r) => '/profil-pegawai/detail/' + D.pegawai.find((p) => p.nip === r.nip).id, icon: 'fa-id-card', label: 'Lihat Profil' },
+        { act: 'detail', icon: 'fa-eye', label: 'Lihat' },
         { act: 'edit', icon: 'fa-edit', label: 'Edit', modal: 'modalPegawai' },
-        { act: 'cetak', icon: 'fa-print', label: 'Cetak Profil' },
         { act: 'hapus', icon: 'fa-trash', label: 'Hapus' }
       ]
     },
