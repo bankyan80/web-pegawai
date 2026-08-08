@@ -1,9 +1,5 @@
-const CACHE = 'timker-v1';
+const CACHE = 'timker-v2';
 const CORE = [
-  '/',
-  '/?hal=home',
-  '/?hal=aboutus',
-  '/?hal=form_login',
   '/css/bootstrap.min.css',
   '/css/theme.css',
   '/fontawesome/css/all.css',
@@ -44,9 +40,7 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname.startsWith('/controller/')) return;
 
   if (event.request.mode === 'navigate') {
-    event.respondWith(
-      fetch(event.request).catch(() => caches.match('/?hal=home'))
-    );
+    event.respondWith(fetch(event.request));
     return;
   }
 
