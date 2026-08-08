@@ -7,11 +7,11 @@
       "config": {
         "includeFiles": [
           "nodejs/**",
-          "css/**",
-          "js/**",
-          "images/**",
-          "fontawesome/**",
-          "fonts/**"
+          "public/css/**",
+          "public/js/**",
+          "public/images/**",
+          "public/fontawesome/**",
+          "public/fonts/**"
         ]
       }
     }

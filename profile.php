@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 if (!isset($_SESSION['MEMBER'])) {
     include_once 'denied.php';
     return;
@@ -14,10 +14,10 @@ $profil = $model->getUser([$id]);
     <?php
     if (empty($profil['foto'])) {
     ?>
-        <img src="images/no_photo.png" class="card-img-top" alt="..." />
+        <img src="public/images/no_photo.png" class="card-img-top" alt="..." />
     <?php } else {
     ?>
-        <img src="images/<?= e($profil['foto']) ?>" class="card-img-top" width="20%" alt="...">
+        <img src="public/images/<?= e($profil['foto']) ?>" class="card-img-top" width="20%" alt="...">
     <?php } ?>
     <div class="card-body">
         <h5 class="card-title"><?= e($profil['fullname']) ?></h5>

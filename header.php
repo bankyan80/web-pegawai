@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -11,9 +11,9 @@
 	<meta name="description" content="Source code generated using layoutit.com">
 	<meta name="author" content="LayoutIt!">
 
-	<link href="css/bootstrap.min.css" rel="stylesheet">
-	<link href="fontawesome/css/all.css" rel="stylesheet">
-	<link href="images/statistics.png" rel="icon" />
+	<link href="public/css/bootstrap.min.css" rel="stylesheet">
+	<link href="public/fontawesome/css/all.css" rel="stylesheet">
+	<link href="public/images/statistics.png" rel="icon" />
 
 </head>
 
@@ -33,7 +33,7 @@
 					</ol>
 					<div class="carousel-inner">
 						<div class="carousel-item">
-							<img class="d-block w-100" alt="Carousel Bootstrap First" src="images/4.jpg">
+							<img class="d-block w-100" alt="Carousel Bootstrap First" src="public/images/4.jpg">
 							<div class="carousel-caption">
 								<h4>
 									First Thumbnail label
@@ -44,7 +44,7 @@
 							</div>
 						</div>
 						<div class="carousel-item">
-							<img class="d-block w-100" alt="Carousel Bootstrap Second" src="images/1.jpg">
+							<img class="d-block w-100" alt="Carousel Bootstrap Second" src="public/images/1.jpg">
 							<div class="carousel-caption">
 								<h4>
 									Second Thumbnail label
@@ -55,7 +55,7 @@
 							</div>
 						</div>
 						<div class="carousel-item active">
-							<img class="d-block w-100" alt="Carousel Bootstrap Third" src="images/6.jpg">
+							<img class="d-block w-100" alt="Carousel Bootstrap Third" src="public/images/6.jpg">
 							<div class="carousel-caption">
 								<h4>
 									Third Thumbnail label

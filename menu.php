@@ -1,4 +1,4 @@
-<div class="row">
+﻿<div class="row">
 	<div class="col-md-12">
 		<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
 
@@ -67,7 +67,7 @@
 						<li class="nav-item dropdown">
 							<a class="nav-link dropdown-toggle" id="navbarDropdownMenuLink" data-toggle="dropdown">
 								Hello, <?= e($_SESSION['MEMBER']['fullname']) ?>
-								<img src="images/<?= e($_SESSION['MEMBER']['foto']) ?>" width="10%" /> </a>
+								<img src="public/images/<?= e($_SESSION['MEMBER']['foto']) ?>" width="10%" /> </a>
 							<div class="dropdown-menu dropdown-menu-right" aria-labelledby="navbarDropdownMenuLink">
 								<a class="dropdown-item" href="index.php?hal=profile&id=<?= e($_SESSION['MEMBER']['id']) ?>">Profile</a>
 								<?php

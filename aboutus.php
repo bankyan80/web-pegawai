@@ -1,4 +1,4 @@
-<h3>About Us</h3>
+﻿<h3>About Us</h3>
 
 <div class="accordion" id="accordionExample" align="center">
   <div class="card">
@@ -12,7 +12,7 @@
 
     <div id="collapseOne" class="collapse show" aria-labelledby="headingOne" data-parent="#accordionExample">
       <div class="card" style="width: 30rem;">
-        <img src="images/philosophy-min.png" class="card-img-top">
+        <img src="public/images/philosophy-min.png" class="card-img-top">
         <div class="card-body">
           <p class="card-text" align="center ">
             <font size='3'>Develop People to be Excellent Talent with Incremental and Iterative way, Quality and Equality, Meritocracy, Make All Parties Happy, Say No to Corruption.
@@ -33,7 +33,7 @@
 
     <div id="collapseTwo" class="collapse" aria-labelledby="headingTwo" data-parent="#accordionExample">
       <div class="card" style="width: 30rem;">
-        <img src="images/vision-min.png" class="card-img-top">
+        <img src="public/images/vision-min.png" class="card-img-top">
         <div class="card-body">
           <p class="card-text" align="center ">
             <font size='3'>Our vision is to become the largest of IT human resources and outsourcing provider in Indonesia at 2025.
@@ -54,7 +54,7 @@
     </div>
     <div id="collapseThree" class="collapse" aria-labelledby="headingThree" data-parent="#accordionExample">
       <div class="card" style="width: 30rem;">
-        <img src="images/mision-min.png" class="card-img-top">
+        <img src="public/images/mision-min.png" class="card-img-top">
         <div class="card-body">
           <p class="card-text" align="center ">
             <font size='3'>Providing professional, high quality, reliable and efficient Software Solutions while maintaining the ease and simplicity of usage to all of our costumers.

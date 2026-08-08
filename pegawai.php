@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 if (isset($_SESSION['MEMBER'])) {
 
   $ar_judul = [
@@ -52,10 +52,10 @@ if (isset($_SESSION['MEMBER'])) {
             <?php
             if (empty($peg['foto'])) {
             ?>
-              <img src="images/no_photo.png" width="20%" />
+              <img src="public/images/no_photo.png" width="20%" />
             <?php } else {
             ?>
-              <img src="images/<?= e($peg['foto']) ?>" width="20%" />
+              <img src="public/images/<?= e($peg['foto']) ?>" width="20%" />
             <?php } ?>
           </td>
           <td>

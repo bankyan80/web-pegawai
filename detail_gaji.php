@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 if (!isset($_SESSION['MEMBER']) || $_SESSION['MEMBER']['role'] == 'staff') {
     include_once 'denied.php';
     return;
@@ -13,10 +13,10 @@ $gaji = $model->getGaji([$id]);
   <?php
   if (empty($gaji['foto'])) {
   ?>
-    <img src="images/no_photo.png" class="card-img-top" alt="..." />
+    <img src="public/images/no_photo.png" class="card-img-top" alt="..." />
   <?php } else {
   ?>
-    <img src="images/<?= e($gaji['foto']) ?>" class="card-img-top" alt="...">
+    <img src="public/images/<?= e($gaji['foto']) ?>" class="card-img-top" alt="...">
   <?php } ?>
   <div class="card-body">
     <h5 class="card-title"><?= e($gaji['nama']) ?></h5>

@@ -42,11 +42,11 @@ app.use((req, res, next) => {
   next();
 });
 
-const staticRoot = process.env.STATIC_ROOT || path.join(__dirname, '..');
-app.use('/css', express.static(path.join(staticRoot, 'css')));
-app.use('/js', express.static(path.join(staticRoot, 'js')));
-app.use('/images', express.static(path.join(staticRoot, 'images')));
-app.use('/fontawesome', express.static(path.join(staticRoot, 'fontawesome')));
+const publicRoot = process.env.PUBLIC_ROOT || path.join(__dirname, '..', 'public');
+app.use('/css', express.static(path.join(publicRoot, 'css')));
+app.use('/js', express.static(path.join(publicRoot, 'js')));
+app.use('/images', express.static(path.join(publicRoot, 'images')));
+app.use('/fontawesome', express.static(path.join(publicRoot, 'fontawesome')));
 
 app.use('/', pages);
 app.use('/controller', controllers);

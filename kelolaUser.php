@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 if (isset($_SESSION['MEMBER']) && $_SESSION['MEMBER']['role'] == 'administrator') {
 
     $ar_judul = ['No', 'Fullname', 'Username', 'Role', 'Email', 'Foto', 'Action'];
@@ -36,10 +36,10 @@ if (isset($_SESSION['MEMBER']) && $_SESSION['MEMBER']['role'] == 'administrator'
                         <?php
                         if (empty($member['foto'])) {
                         ?>
-                            <img src="images/no_photo.png" width="20%" />
+                            <img src="public/images/no_photo.png" width="20%" />
                         <?php } else {
                         ?>
-                            <img src="images/<?= e($member['foto']) ?>" width="20%" />
+                            <img src="public/images/<?= e($member['foto']) ?>" width="20%" />
                         <?php } ?>
                     </td>
                     <td>

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 if (!isset($_SESSION['MEMBER'])) {
     include_once 'denied.php';
     return;
@@ -14,10 +14,10 @@ $peg = $model->detailPegawai([$id]);
 <?php
           if (empty($peg['foto'])) {
           ?>
-            <img src="images/no_photo.png" class="card-img-top" alt="..." />
+            <img src="public/images/no_photo.png" class="card-img-top" alt="..." />
           <?php } else {
           ?>
-            <img src="images/<?= e($peg['foto']) ?>" class="card-img-top" alt="...">
+            <img src="public/images/<?= e($peg['foto']) ?>" class="card-img-top" alt="...">
           <?php } ?> 
     
   <div class="card-body">
