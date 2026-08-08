@@ -1,8 +1,8 @@
 <% if (query.error) { %>
-  <script>alert("Gagal Login");</script>
+  <script>$(function(){ alert("Gagal Login"); $('#tmLoginModal').modal('show'); });</script>
 <% } %>
 <% if (query.blocked) { %>
-  <script>alert("Terlalu banyak percobaan login. Silakan coba lagi 15 menit lagi.");</script>
+  <script>$(function(){ alert("Terlalu banyak percobaan login. Silakan coba lagi 15 menit lagi."); $('#tmLoginModal').modal('show'); });</script>
 <% } %>
 <div class="row justify-content-center">
   <div class="col-md-8 col-lg-7">
@@ -12,8 +12,7 @@
       <p>
         Sistem Informasi Kepegawaian Tech Muda 4 membantu Anda mengelola data pegawai, presensi, kepangkatan, gaji berkala, izin & cuti, diklat, serta seluruh layanan kepegawaian secara terpadu.
       </p>
-      <p class="text-muted">Silakan login menggunakan akun Anda untuk mulai mengakses seluruh layanan.</p>
+      <p class="text-muted">Silakan login menggunakan tombol Login pada menu di atas untuk mulai mengakses seluruh layanan.</p>
     </div>
-    <%- include('../partials/login_form') %>
   </div>
 </div>
