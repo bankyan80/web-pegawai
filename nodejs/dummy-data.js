@@ -33,7 +33,7 @@ const pangkatList = [
   'Pembina', 'Pembina Tk. I', 'Pembina Utama Muda', 'Pembina Utama Madya', 'Pembina Utama'
 ];
 const golonganList = ['I/a', 'I/b', 'I/c', 'I/d', 'II/a', 'II/b', 'II/c', 'II/d', 'III/a', 'III/b', 'III/c', 'III/d', 'IV/a', 'IV/b', 'IV/c', 'IV/d', 'IV/e'];
-const jenisPegawaiList = ['PNS', 'PPPK', 'PPPK Paruh Waktu', 'Non-ASN'];
+const jenisPegawaiList = ['PNS', 'PPPK', 'PPPK Paruh Waktu', 'Honorer'];
 const statusPegawaiList = ['Aktif', 'Aktif', 'Aktif', 'Aktif', 'Cuti', 'Pensiun'];
 const statusRecord = ['Aktif', 'Nonaktif'];
 

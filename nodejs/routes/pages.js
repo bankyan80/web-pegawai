@@ -306,7 +306,7 @@ const KB = {
   'PNS': 'kb-blue',
   'PPPK': 'kb-violet',
   'PPPK Paruh Waktu': 'kb-cyan',
-  'Non-ASN': 'kb-gray',
+  'Honorer': 'kb-gray',
   'Nonaktif': 'kb-gray'
 };
 function kepBadge(v) {
@@ -391,14 +391,12 @@ router.get('/profil-pegawai', async (req, res, next) => {
       { label: 'PNS', value: countBy(D.pegawai, 'jenis', 'PNS'), icon: 'fa-user-tie', color: 'violet' },
       { label: 'PPPK', value: countBy(D.pegawai, 'jenis', 'PPPK'), icon: 'fa-user-graduate', color: 'green' },
       { label: 'PPPK Paruh Waktu', value: countBy(D.pegawai, 'jenis', 'PPPK Paruh Waktu'), icon: 'fa-user-clock', color: 'cyan' },
-      { label: 'Non-ASN', value: countBy(D.pegawai, 'jenis', 'Non-ASN'), icon: 'fa-user-cog', color: 'amber' }
+      { label: 'Honorer', value: countBy(D.pegawai, 'jenis', 'Honorer'), icon: 'fa-user-cog', color: 'amber' }
     ],
     toolbar: {
       search: { table: 'tblPegawai', placeholder: 'Cari nama/NIP' },
       filters: [
-        { table: 'tblPegawai', col: 2, label: 'Filter Status', options: ['Aktif', 'Cuti', 'Pensiun'] },
-        { table: 'tblPegawai', col: 4, label: 'Filter Unit Kerja', options: D.unitKerja },
-        { table: 'tblPegawai', col: 3, label: 'Filter Jabatan', options: D.jabatanList }
+        { table: 'tblPegawai', col: 2, label: 'Filter Jenis Pegawai', options: D.jenisPegawaiList }
       ],
       buttons: [
         { type: 'export', table: 'tblPegawai', label: 'Export', icon: 'fa-file-export' },
