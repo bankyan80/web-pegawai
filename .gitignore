@@ -3,3 +3,6 @@
 *.log
 nodejs/node_modules
 nodejs/database.sqlite*
+
+.vercel
+.env*

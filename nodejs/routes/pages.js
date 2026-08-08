@@ -317,6 +317,36 @@ function countBy(arr, key, val) {
   return arr.filter((x) => x[key] === val).length;
 }
 
+function requireLogin(req, res, next) {
+  if (!req.session.MEMBER) {
+    return res.redirect('/?hal=form_login');
+  }
+  return next();
+}
+
+router.use([
+  '/profil-pegawai',
+  '/presensi',
+  '/referensi-data',
+  '/kelola-user',
+  '/inbox-surat',
+  '/kartu-pegawai',
+  '/kepangkatan',
+  '/gaji-berkala',
+  '/izin-cuti',
+  '/izin-cerai',
+  '/slks',
+  '/pengadaan-pegawai',
+  '/pensiun',
+  '/pindah-tugas',
+  '/penempatan-tugas',
+  '/disiplin-pegawai',
+  '/diklat-struktural',
+  '/diklat-teknis',
+  '/izin-belajar',
+  '/tugas-belajar'
+], requireLogin);
+
 router.get('/profil-pegawai', async (req, res, next) => {
   const rows = D.pegawai.map((p) => [p.nip, p.nama, p.jenis, p.jabatan, p.unit, p.status]);
   const records = D.pegawai.map((p) => ({
