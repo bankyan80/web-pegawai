@@ -452,6 +452,9 @@ router.get('/profil-pegawai', async (req, res, next) => {
 router.get('/profil-pegawai/detail/:id', async (req, res, next) => {
   const D = await kepdata.getKepData();
   const p = D.detailPegawai(parseInt(req.params.id, 10));
+  if (!p) {
+    return res.redirect('/profil-pegawai');
+  }
   const cfg = {
     breadcrumb: ['Master Data', 'Profil Pegawai', 'Detail'],
     title: p.nama,
@@ -588,7 +591,7 @@ router.get('/referensi-data', async (req, res, next) => {
   const tabs = defs.map((d, i) => {
     const tid = 'tblRef' + i;
     const mid = 'modRef' + i;
-    const data = D.referensi[d.key];
+    const data = D.referensi[d.key] || [];
     return {
       id: 'tabRef' + i,
       label: d.label,
@@ -1250,11 +1253,14 @@ router.get('/penempatan-tugas', async (req, res, next) => {
     title: 'Penempatan Tugas',
     desc: 'Pengaturan penempatan pegawai pada unit kerja',
     primaryBtn: { label: 'Tambah Penempatan', modal: 'modalTempat', icon: 'fa-map-marker-alt' },
-    tree: [
-      { label: 'Unit Kerja', value: D.penempatan[0].unit, icon: 'fa-building', color1: '#4f46e5', color2: '#7c3aed' },
-      { label: 'Jabatan', value: D.penempatan[0].jabatan, icon: 'fa-briefcase', color1: '#06b6d4', color2: '#3b82f6' },
-      { label: 'Pegawai', value: D.penempatan[0].pegawai, icon: 'fa-user-tie', color1: '#10b981', color2: '#14b8a6' }
-    ],
+    tree: (function () {
+      const p = D.penempatan[0] || {};
+      return [
+        { label: 'Unit Kerja', value: p.unit || '-', icon: 'fa-building', color1: '#4f46e5', color2: '#7c3aed' },
+        { label: 'Jabatan', value: p.jabatan || '-', icon: 'fa-briefcase', color1: '#06b6d4', color2: '#3b82f6' },
+        { label: 'Pegawai', value: p.pegawai || '-', icon: 'fa-user-tie', color1: '#10b981', color2: '#14b8a6' }
+      ];
+    })(),
     toolbar: {
       search: { table: 'tblTempat', placeholder: 'Cari pegawai' },
       filters: [

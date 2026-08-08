@@ -1,10 +1,6 @@
 // Loader data modul kepegawaian dari Supabase.
-// Menghasilkan objek dengan bentuk yang sama seperti dummy-data.js
-// sehingga routes/pages.js dapat memakainya tanpa perubahan besar.
+// Menghasilkan objek data yang dibaca routes/pages.js.
 const supabase = require('../config/supabase');
-
-// Daftar statis (referensi pilihan pada form) tetap dari dummy-data.
-const D = require('../dummy-data');
 
 const TABLES = [
   'pegawai',
@@ -77,25 +73,27 @@ async function getKepData() {
   const now = Date.now();
   if (!cache || now - cacheTime > CACHE_TTL) {
     const data = await loadAll();
+    const ref = await loadReferensi();
+    const lists = listsFromRef(ref);
     const out = {};
     TABLES.forEach((t) => {
       out[TABLE_KEYS[t] || t] = data[t];
     });
     cache = {
       ...out,
-      // List referensi (diisi dari Supabase, fallback dummy-data)
-      referensi: await loadReferensi(),
+      // List referensi dari Supabase
+      referensi: ref,
       // Detail pegawai dibangun dari baris pegawai
       detailPegawai: detailPegawai,
       // Kartu pegawai (10 pertama)
       kartuPegawai: data.pegawai.slice(0, 10).map((p) => ({ ...p, qr: 'KRP-' + String(p.nip).slice(-6) })),
-      // Static lists tetap dari dummy-data agar form tidak berubah
-      unitKerja: D.unitKerja,
-      jabatanList: D.jabatanList,
-      pangkatList: D.pangkatList,
-      golonganList: D.golonganList,
-      jenisPegawaiList: D.jenisPegawaiList,
-      jenisCuti: D.jenisCuti
+      // List pilihan form dari tabel referensi
+      unitKerja: lists.unitKerja,
+      jabatanList: lists.jabatanList,
+      pangkatList: lists.pangkatList,
+      golonganList: lists.golonganList,
+      jenisPegawaiList: lists.jenisPegawaiList,
+      jenisCuti: lists.jenisCuti
     };
     cacheTime = now;
   }
@@ -113,8 +111,22 @@ async function loadReferensi() {
     return ref;
   } catch (err) {
     console.error('KEPDATA referensi:', err.message);
-    return D.referensi;
+    return {};
   }
+}
+
+// List statis pilihan form dibangun dari tabel referensi.
+function listsFromRef(ref) {
+  const byName = (kat) => (ref[kat] || []).filter((r) => r.status === 'Aktif').map((r) => r.nama);
+  const golongan = (ref['golongan'] || []).filter((r) => r.status === 'Aktif');
+  return {
+    unitKerja: byName('unit'),
+    jabatanList: byName('jabatan'),
+    pangkatList: golongan.map((r) => r.nama),
+    golonganList: golongan.map((r) => r.kode),
+    jenisPegawaiList: byName('jenisPegawai'),
+    jenisCuti: byName('jenisCuti')
+  };
 }
 
 function detailPegawai(id) {
