@@ -1,0 +1,5 @@
+<%- include('../partials/kep_header', { breadcrumb, title, desc, primaryBtn }) %>
+<% if (stats) { %><%- include('../partials/kep_stats', { stats }) %><% } %>
+<%- include('../partials/kep_tabs', { tabs }) %>
+<% if (modal) { %><%- include('../partials/kep_modal', { modal }) %><% } %>
+<%- include('../partials/kep_detail_modal') %>

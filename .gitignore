@@ -1,0 +1,5 @@
+# jangan commit file konfigurasi lokal
+.env
+*.log
+nodejs/node_modules
+nodejs/database.sqlite*

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+
+	<title>Tech Muda 4 | Sistem Kepegawaian</title>
+
+	<meta name="description" content="Sistem informasi kepegawaian Tech Muda 4">
+	<meta name="author" content="Tech Muda 4">
+
+	<link href="/css/bootstrap.min.css" rel="stylesheet">
+	<link href="/fontawesome/css/all.css" rel="stylesheet">
+	<link href="/css/theme.css" rel="stylesheet">
+	<link href="/images/statistics.png" rel="icon" />
+
+</head>
+
+<body>
+
+	<%- include('partials/menu') %>
+	<%- include('partials/menu_kepegawaian') %>
+
+	<div class="container-fluid main-wrapper">
+		<div class="row">
+			<div class="col-lg-9 content-col order-1 order-lg-2">
+				<div class="page-card">
+					<%- body %>
+				</div>
+			</div>
+			<div class="col-lg-3 sidebar-col order-2 order-lg-1">
+				<%- include('partials/sidebar') %>
+			</div>
+		</div>
+	</div>
+
+	<%- include('partials/footer') %>
+
+	<script src="/js/jquery.min.js"></script>
+	<script src="/js/popper.min.js"></script>
+	<script src="/js/bootstrap.min.js"></script>
+	<script src="/js/kep.js"></script>
+</body>
+
+</html>

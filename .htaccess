@@ -1,0 +1,7 @@
+# Blokir file sensitif agar tidak bisa diunduh lewat browser
+<FilesMatch "^(\.env|Dockerfile|docker-compose\.yml|.*\.sql)$">
+    Require all denied
+</FilesMatch>
+
+# matikan listing direktori
+Options -Indexes

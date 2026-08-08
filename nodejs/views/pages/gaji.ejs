@@ -1,0 +1,49 @@
+<% if (member && member.role != 'staff') { %>
+  <% function rupiah(n) {
+       var num = parseFloat(n);
+       if (isNaN(num)) return n || '';
+       return 'Rp ' + num.toLocaleString('id-ID');
+     } %>
+  <% var ar_judul = ['No', 'Nama', 'Jabatan', 'Divisi', 'Gaji Pokok', 'Action']; %>
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h3 class="mb-0"><i class="fas fa-money-bill-wave text-primary mr-2"></i>Data Gaji</h3>
+    <a href="/?hal=form_gaji" class="btn btn-primary"><i class="fas fa-plus mr-1"></i> Input Data</a>
+  </div>
+  <% if (rs.length === 0) { %>
+    <div class="tm-empty">
+      <i class="fas fa-inbox"></i>
+      Belum ada data gaji.
+    </div>
+  <% } else { %>
+    <div class="table-responsive">
+      <table class="table tm-table table-hover">
+        <thead>
+          <tr>
+            <% ar_judul.forEach(function(jdl) { %>
+              <th scope="col"><%= jdl %></th>
+            <% }) %>
+          </tr>
+        </thead>
+        <tbody>
+          <% var no = 1; %>
+          <% rs.forEach(function(gaji) { %>
+            <tr>
+              <th scope="row" class="row-head"><%= no %></th>
+              <td><strong><%= gaji.nama %></strong></td>
+              <td><%= gaji.jabatan %></td>
+              <td><%= gaji.divisi %></td>
+              <td><strong><%= rupiah(gaji.gapok) %></strong></td>
+              <td class="text-nowrap">
+                <a href="/?hal=detail_gaji&id=<%= gaji.id %>" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i> Detail</a>
+                <a href="/?hal=form_gaji&idedit=<%= gaji.id %>" class="btn btn-sm btn-info"><i class="fas fa-edit"></i> Edit</a>
+              </td>
+            </tr>
+            <% no++; %>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+<% } else { %>
+  <%- include('../partials/denied') %>
+<% } %>

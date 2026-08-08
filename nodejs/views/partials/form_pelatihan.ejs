@@ -1,0 +1,49 @@
+<% var idedit = typeof idedit !== 'undefined' ? idedit : ''; %>
+<% var rs = typeof record !== 'undefined' && record ? record : (typeof rs !== 'undefined' ? rs : {}); %>
+<form method="POST" action="/controller/pelatihan">
+    <input type="hidden" name="csrf_token" value="<%= csrf %>">
+    <div class="form-group">
+        <label for="nama">Nama Pegawai</label>
+        <select id="nama" name="pegawai" class="custom-select">
+            <option value="">-- Nama Pegawai --</option>
+            <% pegawai.forEach(function(peg) { %>
+                <% var sel = (peg.id == rs.pegawai_id) ? 'selected' : ''; %>
+                <option value="<%= peg.id %>" <%= sel %>><%= peg.nama %></option>
+            <% }) %>
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="materi">Materi Pelatihan</label>
+        <select id="materi" name="materi" class="custom-select">
+            <option value="">-- Materi Pelatihan --</option>
+            <% materi.forEach(function(mat) { %>
+                <% var sel = (mat.id == rs.materi_id) ? 'selected' : ''; %>
+                <option value="<%= mat.id %>" <%= sel %>><%= mat.nama %></option>
+            <% }) %>
+        </select>
+    </div>
+    <div class="form-group">
+        <label>Tanggal Mulai</label>
+        <input name="tgl_mulai" value="<%= rs.tgl_mulai || '' %>" type="date" class="form-control">
+    </div>
+    <div class="form-group">
+        <label for="tgl">Tanggal Akhir</label>
+        <input id="tgl" name="tgl_akhir" value="<%= rs.tgl_akhir || '' %>" type="date" class="form-control">
+    </div>
+    <div class="form-group">
+        <label for="ket">Keterangan</label>
+        <input id="ket" name="ket" value="<%= rs.keterangan || '' %>" type="text" class="form-control">
+    </div>
+    <div class="form-group mb-0">
+        <% if (!idedit) { %>
+            <button name="proses" value="simpan" type="submit" class="btn btn-primary btn-block"><i class="fas fa-save mr-1"></i> Simpan</button>
+        <% } else { %>
+            <div class="btn-group d-flex">
+                <button name="proses" value="ubah" type="submit" class="btn btn-warning"><i class="fas fa-pen mr-1"></i> Ubah</button>
+                <button name="proses" value="hapus" type="submit" onClick="return confirm('Anda yakin ingin menghapus?')" class="btn btn-danger"><i class="fas fa-trash mr-1"></i> Hapus</button>
+                <input type="hidden" name="idx" value="<%= idedit %>" />
+            </div>
+        <% } %>
+        <button name="proses" value="batal" type="submit" class="btn btn-info btn-block mt-2"><i class="fas fa-times mr-1"></i> Batal</button>
+    </div>
+</form>

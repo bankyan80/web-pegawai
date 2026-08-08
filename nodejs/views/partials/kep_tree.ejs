@@ -1,0 +1,10 @@
+<div class="kep-tree">
+	<% nodes.forEach(function (n, i) { %>
+		<div class="kep-tree-node">
+			<div class="kt-ico" style="background:linear-gradient(135deg, <%= n.color1 %>, <%= n.color2 %>)"><i class="fas <%= n.icon %>"></i></div>
+			<div class="kt-label"><%= n.label %></div>
+			<div class="kt-value"><%= n.value %></div>
+		</div>
+		<% if (i < nodes.length - 1) { %><div class="kep-tree-arrow"><i class="fas fa-arrow-down"></i></div><% } %>
+	<% }) %>
+</div>

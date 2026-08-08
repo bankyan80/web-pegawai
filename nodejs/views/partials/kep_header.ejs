@@ -1,0 +1,24 @@
+<div class="kep-page-head">
+	<nav class="kep-breadcrumb" aria-label="breadcrumb">
+		<ol class="breadcrumb">
+			<% (breadcrumb || []).forEach(function (cr, i) { %>
+				<% if (i === (breadcrumb || []).length - 1) { %>
+					<li class="breadcrumb-item active" aria-current="page"><%= cr %></li>
+				<% } else { %>
+					<li class="breadcrumb-item"><a href="/"><%= cr %></a></li>
+				<% } %>
+			<% }) %>
+		</ol>
+	</nav>
+	<div class="kep-head-row">
+		<div>
+			<h4 class="kep-title"><%= title %></h4>
+			<% if (desc) { %><p class="kep-desc"><%= desc %></p><% } %>
+		</div>
+		<% if (primaryBtn) { %>
+			<button type="button" class="btn btn-primary btn-kep" data-toggle="modal" data-target="#<%= primaryBtn.modal %>">
+				<i class="fas <%= primaryBtn.icon || 'fa-plus' %>"></i> <%= primaryBtn.label %>
+			</button>
+		<% } %>
+	</div>
+</div>

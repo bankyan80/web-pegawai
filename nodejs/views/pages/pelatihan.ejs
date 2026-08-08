@@ -1,0 +1,68 @@
+<% if (member && member.role != 'staff') { %>
+    <% var ar_judul = ['No', 'Nama', 'Divisi', 'Jabatan', 'Materi', 'Tanggal Mulai', 'Tanggal Akhir', 'Keterangan', 'Action']; %>
+
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h3 class="mb-0"><i class="fas fa-graduation-cap text-primary mr-2"></i>Data Pelatihan</h3>
+        <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#form_pelatihan">
+            <i class="fas fa-plus mr-1"></i> Input Data
+        </button>
+    </div>
+
+    <div class="modal fade" id="form_pelatihan" tabindex="-1" role="dialog" aria-labelledby="modalPelatihan" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalPelatihan"><i class="fas fa-graduation-cap mr-1"></i> Form Pelatihan</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <% var idedit = ''; %>
+                    <% var record = {}; %>
+                    <%- include('../partials/form_pelatihan') %>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <% if (rs.length === 0) { %>
+        <div class="tm-empty">
+            <i class="fas fa-inbox"></i>
+            Belum ada data pelatihan.
+        </div>
+    <% } else { %>
+        <div class="table-responsive">
+            <table class="table tm-table table-hover">
+                <thead>
+                    <tr>
+                        <% ar_judul.forEach(function(jdl) { %>
+                            <th scope="col"><%= jdl %></th>
+                        <% }) %>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% var no = 1; %>
+                    <% rs.forEach(function(pel) { %>
+                        <tr>
+                            <th scope="row" class="row-head"><%= no %></th>
+                            <td><strong><%= pel.nama %></strong></td>
+                            <td><%= pel.divisi %></td>
+                            <td><%= pel.jabatan %></td>
+                            <td><span class="badge badge-primary"><%= pel.materi %></span></td>
+                            <td><%= pel.tgl_mulai %></td>
+                            <td><%= pel.tgl_akhir %></td>
+                            <td><%= pel.keterangan %></td>
+                            <td>
+                                <a href="/?hal=form_pelatihan&idedit=<%= pel.id %>" class="btn btn-sm btn-warning"><i class="fas fa-edit"></i> Edit</a>
+                            </td>
+                        </tr>
+                        <% no++; %>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
+    <% } %>
+<% } else { %>
+    <%- include('../partials/denied') %>
+<% } %>

@@ -1,0 +1,36 @@
+<div class="kep-toolbar">
+	<div class="kep-toolbar-left">
+		<% if (toolbar.search) { %>
+			<div class="kep-search">
+				<i class="fas fa-search"></i>
+				<input type="text" class="form-control kep-search-input" data-table="<%= toolbar.search.table %>" placeholder="<%= toolbar.search.placeholder || 'Cari...' %>" />
+			</div>
+		<% } %>
+		<% (toolbar.filters || []).forEach(function (f) { %>
+			<select class="form-control kep-filter" data-table="<%= f.table %>" data-col="<%= f.col %>">
+				<option value=""><%= f.label %></option>
+				<% (f.options || []).forEach(function (o) { %>
+					<option value="<%= o %>"><%= o %></option>
+				<% }) %>
+			</select>
+		<% }) %>
+	</div>
+	<div class="kep-toolbar-right">
+		<% (toolbar.buttons || []).forEach(function (b) { %>
+			<% if (b.type === 'modal') { %>
+				<button type="button" class="btn btn-primary btn-kep-sm" data-toggle="modal" data-target="#<%= b.modal %>"><i class="fas <%= b.icon %>"></i> <%= b.label %></button>
+			<% } else if (b.type === 'file') { %>
+				<label class="btn btn-outline-primary btn-kep-sm">
+					<i class="fas <%= b.icon %>"></i> <%= b.label %>
+					<input type="file" class="kep-import" data-toast="<%= b.toast || 'Data berhasil diimpor (demo).' %>" hidden />
+				</label>
+			<% } else if (b.type === 'print') { %>
+				<button type="button" class="btn btn-outline-primary btn-kep-sm kep-print"><i class="fas <%= b.icon %>"></i> <%= b.label %></button>
+			<% } else if (b.type === 'export') { %>
+				<button type="button" class="btn btn-outline-primary btn-kep-sm kep-export" data-table="<%= b.table %>"><i class="fas <%= b.icon %>"></i> <%= b.label %></button>
+			<% } else { %>
+				<button type="button" class="btn btn-outline-primary btn-kep-sm kep-act" data-act="<%= b.act || '' %>"><i class="fas <%= b.icon %>"></i> <%= b.label %></button>
+			<% } %>
+		<% }) %>
+	</div>
+</div>

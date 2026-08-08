@@ -1,0 +1,12 @@
+<div class="kep-workflow">
+	<% (steps || []).forEach(function (s, i) { %>
+		<div class="kep-wf-step <%= s.active ? 'active' : '' %> <%= s.done ? 'done' : '' %>">
+			<div class="kep-wf-ico"><i class="fas <%= s.icon %>"></i></div>
+			<div class="kep-wf-label"><%= s.label %></div>
+			<div class="kep-wf-desc"><%= s.desc || '' %></div>
+		</div>
+		<% if (i < (steps || []).length - 1) { %>
+			<div class="kep-wf-arrow"><i class="fas fa-chevron-right"></i></div>
+		<% } %>
+	<% }) %>
+</div>

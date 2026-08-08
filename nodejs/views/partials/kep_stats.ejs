@@ -1,0 +1,13 @@
+<div class="kep-stats">
+	<% (stats || []).forEach(function (s) { %>
+		<div class="kep-stat">
+			<div class="kep-stat-icon kep-stat-<%= s.color || 'blue' %>">
+				<i class="fas <%= s.icon %>"></i>
+			</div>
+			<div class="kep-stat-meta">
+				<div class="kep-stat-value"><%= s.value %></div>
+				<div class="kep-stat-label"><%= s.label %></div>
+			</div>
+		</div>
+	<% }) %>
+</div>

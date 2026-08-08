@@ -1,0 +1,53 @@
+<% if (member) { %>
+  <% var ar_judul = ['No', 'NIP', 'Nama', 'Gender', 'Jabatan', 'Divisi', 'Alamat', 'Foto', 'Action']; %>
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h3 class="mb-0"><i class="fas fa-users text-primary mr-2"></i>Data Pegawai</h3>
+    <a href="/?hal=form_pegawai" class="btn btn-primary"><i class="fas fa-plus mr-1"></i> Input Data</a>
+  </div>
+  <% if (rs.length === 0) { %>
+    <div class="tm-empty">
+      <i class="fas fa-inbox"></i>
+      Belum ada data pegawai.
+    </div>
+  <% } else { %>
+    <div class="table-responsive">
+      <table class="table tm-table table-hover">
+        <thead>
+          <tr>
+            <% ar_judul.forEach(function(jdl) { %>
+              <th scope="col"><%= jdl %></th>
+            <% }) %>
+          </tr>
+        </thead>
+        <tbody>
+          <% var no = 1; %>
+          <% rs.forEach(function(peg) { %>
+            <tr>
+              <th scope="row" class="row-head"><%= no %></th>
+              <td><%= peg.nip %></td>
+              <td><strong><%= peg.nama %></strong></td>
+              <td><%= peg.gender %></td>
+              <td><%= peg.jabatan %></td>
+              <td><%= peg.divisi %></td>
+              <td><%= peg.alamat %></td>
+              <td>
+                <% if (!peg.foto) { %>
+                  <img src="/images/no_photo.png" class="tm-thumb" alt="foto" />
+                <% } else { %>
+                  <img src="/images/<%= peg.foto %>" class="tm-thumb" alt="foto" />
+                <% } %>
+              </td>
+              <td class="text-nowrap">
+                <a href="/?hal=detail_pegawai&id=<%= peg.id %>" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i> Detail</a>
+                <a href="/?hal=form_pegawai&idedit=<%= peg.id %>" class="btn btn-sm btn-warning"><i class="fas fa-edit"></i> Edit</a>
+              </td>
+            </tr>
+            <% no++; %>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+<% } else { %>
+  <%- include('../partials/denied') %>
+<% } %>

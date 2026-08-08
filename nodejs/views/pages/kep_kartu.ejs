@@ -1,0 +1,115 @@
+<%- include('../partials/kep_header', { breadcrumb, title, desc, primaryBtn }) %>
+
+<div class="kep-toolbar">
+	<div class="kep-toolbar-left">
+		<div class="kep-search">
+			<i class="fas fa-search"></i>
+			<input type="text" class="form-control kep-kartu-search" id="kartuSearch" placeholder="Cari NIP / Nama Pegawai" />
+		</div>
+		<select class="form-control kep-filter" id="kartuPilih">
+			<% (list || []).forEach(function (p) { %>
+				<option value="<%= p.id %>"><%= p.nip %> — <%= p.nama %></option>
+			<% }) %>
+		</select>
+	</div>
+	<div class="kep-toolbar-right">
+		<button type="button" class="btn btn-outline-primary btn-kep-sm kep-kartu-cetak"><i class="fas fa-print"></i> Cetak Kartu</button>
+		<button type="button" class="btn btn-outline-primary btn-kep-sm kep-kartu-pdf"><i class="fas fa-file-pdf"></i> Download PDF</button>
+		<button type="button" class="btn btn-primary btn-kep-sm" data-toggle="modal" data-target="#kartuPreviewModal"><i class="fas fa-eye"></i> Preview</button>
+	</div>
+</div>
+
+<div class="kep-kartu-wrap">
+	<% (list || []).forEach(function (p) { %>
+		<div class="kep-kartu" data-id="<%= p.id %>">
+			<div class="kep-kartu-head">
+				<i class="fas fa-id-card"></i>
+				<span>KARTU PEGAWAI</span>
+			</div>
+			<div class="kep-kartu-body">
+				<div class="kep-kartu-foto">
+					<img src="/images/no_photo.png" alt="Foto" />
+				</div>
+				<div class="kep-kartu-info">
+					<div class="kk-row"><span>Nama</span><strong><%= p.nama %></strong></div>
+					<div class="kk-row"><span>NIP</span><strong><%= p.nip %></strong></div>
+					<div class="kk-row"><span>Jabatan</span><strong><%= p.jabatan %></strong></div>
+					<div class="kk-row"><span>Unit Kerja</span><strong><%= p.unit %></strong></div>
+				</div>
+			</div>
+			<div class="kep-kartu-foot">
+				<span class="kep-qr"><%= p.qr %></span>
+				<em>Sistem Kepegawaian Tech Muda 4</em>
+			</div>
+		</div>
+	<% }) %>
+</div>
+
+<div class="modal fade" id="kartuPreviewModal" tabindex="-1" role="dialog" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered" role="document">
+		<div class="modal-content kep-modal">
+			<div class="modal-header">
+				<h5 class="modal-title"><i class="fas fa-eye"></i> Preview Kartu</h5>
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+			</div>
+			<div class="modal-body">
+				<div class="kep-kartu-preview"></div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-outline-secondary btn-kep-sm" data-dismiss="modal">Tutup</button>
+				<button type="button" class="btn btn-primary btn-kep-sm kep-kartu-cetak"><i class="fas fa-print"></i> Cetak</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<script>
+(function () {
+	var cards = Array.prototype.slice.call(document.querySelectorAll('.kep-kartu'));
+	var select = document.getElementById('kartuPilih');
+	var search = document.getElementById('kartuSearch');
+
+	function show(id) {
+		cards.forEach(function (c) {
+			c.style.display = c.getAttribute('data-id') === String(id) ? 'block' : 'none';
+		});
+		var sel = document.querySelector('.kep-kartu-preview');
+		if (sel) {
+			var target = cards.filter(function (c) { return c.getAttribute('data-id') === String(id); })[0];
+			sel.innerHTML = target ? target.outerHTML : '';
+		}
+	}
+
+	if (select) {
+		select.addEventListener('change', function () { show(select.value); });
+		show(select.value);
+	}
+	if (search) {
+		search.addEventListener('input', function () {
+			var q = search.value.trim().toLowerCase();
+			var found = null;
+			cards.forEach(function (c) {
+				var txt = c.textContent.toLowerCase();
+				if (!q || txt.indexOf(q) !== -1) {
+					c.style.display = 'block';
+					if (!found) found = c.getAttribute('data-id');
+				} else {
+					c.style.display = 'none';
+				}
+			});
+			if (found && select) select.value = found;
+		});
+	}
+
+	document.querySelectorAll('.kep-kartu-cetak').forEach(function (btn) {
+		btn.addEventListener('click', function () {
+			window.print();
+		});
+	});
+	document.querySelectorAll('.kep-kartu-pdf').forEach(function (btn) {
+		btn.addEventListener('click', function () {
+			kepToast('PDF kartu pegawai akan diunduh (demo).');
+		});
+	});
+})();
+</script>

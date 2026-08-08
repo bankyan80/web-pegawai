@@ -1,0 +1,25 @@
+<% if (!member) { %>
+    <%- include('../partials/denied') %>
+<% } else { %>
+    <% var profil = typeof profil !== 'undefined' ? profil : {}; %>
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h3 class="mb-0"><i class="fas fa-id-card text-primary mr-2"></i>Profile</h3>
+        <a href="/?hal=home" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left mr-1"></i> Go back</a>
+    </div>
+    <div class="card tm-profile-card">
+        <% if (!profil.foto) { %>
+            <img src="/images/no_photo.png" class="card-img-top" alt="foto" />
+        <% } else { %>
+            <img src="/images/<%= profil.foto %>" class="card-img-top" alt="foto" />
+        <% } %>
+        <div class="card-body">
+            <h5 class="card-title"><%= profil.fullname || '' %></h5>
+            <hr>
+            <table class="tm-field-table">
+                <tr><td>Username</td><td>:</td><td><%= profil.username || '-' %></td></tr>
+                <tr><td>Role</td><td>:</td><td><%= profil.role || '-' %></td></tr>
+                <tr><td>Email</td><td>:</td><td><%= profil.email || '-' %></td></tr>
+            </table>
+        </div>
+    </div>
+<% } %>

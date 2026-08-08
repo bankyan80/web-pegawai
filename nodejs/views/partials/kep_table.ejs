@@ -1,0 +1,33 @@
+<div class="kep-table-wrap">
+	<table class="tm-table kep-table" id="<%= table.id %>">
+		<thead>
+			<tr>
+				<th class="kep-no-col">No</th>
+				<% table.columns.forEach(function (c) { %>
+					<th><%= c.label %></th>
+				<% }) %>
+				<th class="kep-th-act">Aksi</th>
+			</tr>
+		</thead>
+		<tbody>
+			<% table.rows.forEach(function (r, ri) { %>
+				<tr data-index="<%= ri %>" data-record='<%- JSON.stringify(table.records ? table.records[ri] || {} : {}) %>'>
+					<td class="kep-no"></td>
+					<% table.columns.forEach(function (c, ci) { %>
+						<td data-col="<%= ci %>"><%- c.format ? c.format(r[ci], r) : String(r[ci]) %></td>
+					<% }) %>
+					<td class="kep-td-act">
+						<% (table.actions || []).forEach(function (a) { %>
+							<% if (a.url) { %>
+								<a class="btn btn-sm kep-act-link" title="<%= a.label %>" href="<%- typeof a.url === 'function' ? a.url(table.records[ri]) : a.url %>"><i class="fas <%= a.icon %>"></i></a>
+							<% } else { %>
+								<button type="button" class="btn btn-sm kep-act" data-act="<%= a.act %>" data-table="<%= table.id %>" data-modal="<%= a.modal || '' %>" title="<%= a.label %>"><i class="fas <%= a.icon %>"></i></button>
+							<% } %>
+						<% }) %>
+					</td>
+				</tr>
+			<% }) %>
+		</tbody>
+	</table>
+	<div class="kep-pager" data-table="<%= table.id %>"></div>
+</div>

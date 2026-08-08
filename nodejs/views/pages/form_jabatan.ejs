@@ -1,0 +1,28 @@
+<% if (member && member.role != 'staff') { %>
+  <% var idedit = query.idedit || ''; %>
+  <% var rs = typeof rs !== 'undefined' ? rs : {}; %>
+  <h3><i class="fas fa-briefcase text-primary mr-2"></i><%= idedit ? 'Ubah Jabatan' : 'Tambah Jabatan' %></h3>
+  <form method="POST" action="/controller/jabatan" class="mt-4">
+    <input type="hidden" name="csrf_token" value="<%= csrf %>">
+    <div class="form-group row">
+      <label for="nama" class="col-4 col-form-label">Nama Jabatan</label>
+      <div class="col-8">
+        <input id="nama" name="nama" value="<%= rs.nama || '' %>" type="text" class="form-control">
+      </div>
+    </div>
+    <div class="form-group row">
+      <div class="offset-4 col-8">
+        <% if (!idedit) { %>
+          <button name="proses" value="simpan" type="submit" class="btn btn-primary"><i class="fas fa-save mr-1"></i> Simpan</button>
+        <% } else { %>
+          <button name="proses" value="ubah" type="submit" class="btn btn-warning"><i class="fas fa-pen mr-1"></i> Ubah</button>
+          <button name="proses" value="hapus" type="submit" onClick="return confirm('Anda yakin ingin menghapus?')" class="btn btn-danger"><i class="fas fa-trash mr-1"></i> Hapus</button>
+          <input type="hidden" name="idx" value="<%= idedit %>" />
+        <% } %>
+        <button name="proses" value="batal" type="submit" class="btn btn-info"><i class="fas fa-times mr-1"></i> Batal</button>
+      </div>
+    </div>
+  </form>
+<% } else { %>
+  <%- include('../partials/denied') %>
+<% } %>

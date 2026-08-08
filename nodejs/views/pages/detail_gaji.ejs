@@ -1,0 +1,35 @@
+<% if (!member || member.role == 'staff') { %>
+    <%- include('../partials/denied') %>
+<% } else { %>
+    <% var gaji = typeof gaji !== 'undefined' ? gaji : {}; %>
+    <% function rupiah(n) {
+         var num = parseFloat(n);
+         return isNaN(num) ? (n || '-') : 'Rp ' + num.toLocaleString('id-ID');
+       } %>
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h3 class="mb-0"><i class="fas fa-money-bill-wave text-primary mr-2"></i>Detail Gaji</h3>
+        <a href="/?hal=gaji" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left mr-1"></i> Go back</a>
+    </div>
+    <div class="card tm-profile-card">
+        <% if (!gaji.foto) { %>
+            <img src="/images/no_photo.png" class="card-img-top" alt="foto" />
+        <% } else { %>
+            <img src="/images/<%= gaji.foto %>" class="card-img-top" alt="foto" />
+        <% } %>
+        <div class="card-body">
+            <h5 class="card-title"><%= gaji.nama || '' %></h5>
+            <hr>
+            <table class="tm-field-table">
+                <tr><td>NIP</td><td>:</td><td><%= gaji.nip || '-' %></td></tr>
+                <tr><td>Divisi</td><td>:</td><td><%= gaji.divisi || '-' %></td></tr>
+                <tr><td>Jabatan</td><td>:</td><td><%= gaji.jabatan || '-' %></td></tr>
+                <tr><td>Gaji Pokok</td><td>:</td><td><strong><%= rupiah(gaji.gapok) %></strong></td></tr>
+                <tr><td>Tunjangan Jabatan</td><td>:</td><td><%= rupiah(gaji.tunjab) %></td></tr>
+                <tr><td>BPJS</td><td>:</td><td><%= rupiah(gaji.bpjs) %></td></tr>
+                <tr><td>Lain-Lain</td><td>:</td><td><%= rupiah(gaji.lain2) %></td></tr>
+                <tr><td>Total</td><td>:</td><td><strong><%= rupiah((parseFloat(gaji.gapok)||0) + (parseFloat(gaji.tunjab)||0) + (parseFloat(gaji.bpjs)||0) + (parseFloat(gaji.lain2)||0)) %></strong></td></tr>
+            </table>
+            <a href="/?hal=form_gaji&idedit=<%= gaji.id %>" class="btn btn-primary btn-sm mt-3"><i class="fas fa-edit mr-1"></i> Edit</a>
+        </div>
+    </div>
+<% } %>

@@ -1,0 +1,27 @@
+<?php
+session_set_cookie_params([
+    'httponly' => true,
+    'samesite' => 'Lax'
+]);
+session_start();
+
+//security headers dasar
+header('X-Frame-Options: SAMEORIGIN');
+header('X-Content-Type-Options: nosniff');
+header('Referrer-Policy: strict-origin-when-cross-origin');
+
+include_once 'koneksi.php';
+include_once 'models/Pegawai.php';
+include_once 'models/Divisi.php';
+include_once 'models/Jabatan.php';
+include_once 'models/Gaji.php';
+include_once 'models/Login.php';
+include_once 'models/Materi.php';
+include_once 'models/Pelatihan.php';
+include_once 'header.php';
+include_once 'menu.php';
+echo '<br/>';
+include_once 'main.php';
+include_once 'sidebar.php';
+echo '<br/>';
+include_once 'footer.php';

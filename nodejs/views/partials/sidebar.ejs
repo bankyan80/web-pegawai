@@ -1,0 +1,22 @@
+<div class="tm-sidebar">
+	<% if (member) { %>
+		<div class="list-group">
+			<a href="#" class="list-group-item tm-sidebar-head"><i class="fas fa-building"></i> Divisi</a>
+			<% divisiList.forEach(function(div) { %>
+				<div class="list-group-item">
+					<a href="/?hal=pegawai&id=<%= div.id %>"><i class="fas fa-angle-right"></i> <%= div.nama %></a>
+				</div>
+			<% }) %>
+		</div>
+		<div class="list-group">
+			<a href="#" class="list-group-item tm-sidebar-head"><i class="fas fa-briefcase"></i> Jabatan</a>
+			<% jabatanList.forEach(function(jab) { %>
+				<div class="list-group-item">
+					<a href="/?hal=pegawai&idx=<%= jab.id %>"><i class="fas fa-angle-right"></i> <%= jab.nama %></a>
+				</div>
+			<% }) %>
+		</div>
+	<% } else { %>
+		<%- include('login_form') %>
+	<% } %>
+</div>

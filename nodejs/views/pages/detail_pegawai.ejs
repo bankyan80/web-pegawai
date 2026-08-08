@@ -1,0 +1,31 @@
+<% if (!member) { %>
+    <%- include('../partials/denied') %>
+<% } else { %>
+    <% var peg = typeof peg !== 'undefined' ? peg : {}; %>
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h3 class="mb-0"><i class="fas fa-user text-primary mr-2"></i>Detail Pegawai</h3>
+        <a href="/?hal=pegawai" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left mr-1"></i> Go back</a>
+    </div>
+    <div class="card tm-profile-card">
+        <% if (!peg.foto) { %>
+            <img src="/images/no_photo.png" class="card-img-top" alt="foto" />
+        <% } else { %>
+            <img src="/images/<%= peg.foto %>" class="card-img-top" alt="foto" />
+        <% } %>
+        <div class="card-body">
+            <h5 class="card-title"><%= peg.nama || '' %></h5>
+            <hr>
+            <table class="tm-field-table">
+                <tr><td>NIP</td><td>:</td><td><%= peg.nip || '-' %></td></tr>
+                <tr><td>Jenis Kelamin</td><td>:</td><td><%= peg.gender || '-' %></td></tr>
+                <tr><td>Divisi</td><td>:</td><td><%= peg.divisi || '-' %></td></tr>
+                <tr><td>Jabatan</td><td>:</td><td><%= peg.jabatan || '-' %></td></tr>
+                <tr><td>Tempat Lahir</td><td>:</td><td><%= peg.tempat_lahir || '-' %></td></tr>
+                <tr><td>Tanggal Lahir</td><td>:</td><td><%= peg.tanggal_lahir || '-' %></td></tr>
+                <tr><td>Alamat</td><td>:</td><td><%= peg.alamat || '-' %></td></tr>
+                <tr><td>Email</td><td>:</td><td><%= peg.email || '-' %></td></tr>
+            </table>
+            <a href="/?hal=form_pegawai&idedit=<%= peg.id %>" class="btn btn-primary btn-sm mt-3"><i class="fas fa-edit mr-1"></i> Edit</a>
+        </div>
+    </div>
+<% } %>

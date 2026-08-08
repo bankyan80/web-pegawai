@@ -1,0 +1,40 @@
+<div class="tm-hero">
+	<h2>Welcome to Tech Muda 4 App</h2>
+	<p>
+		Tech Muda is an IT company which provides skillful talents as IT service for our customers. Founded in 2020, we are committed to develop and upgrade human resources with specific skills and knowledge, from potential to become excellent people who is ready to compete in the IT industry to help you meet your IT business objectives.
+	</p>
+	<p class="mb-0">
+		<a class="btn btn-hero btn-lg" href="/?hal=aboutus">
+			Read More <i class="fas fa-caret-right ml-1"></i>
+		</a>
+	</p>
+</div>
+
+<% if (member) { %>
+	<div class="row mt-4">
+		<div class="col-md-4 mb-3">
+			<div class="tm-stat">
+				<div class="stat-icon icon-indigo"><i class="fas fa-users"></i></div>
+				<div class="stat-label">Data Pegawai</div>
+				<div class="stat-value"><%= jumlahPegawai || 0 %></div>
+				<a href="/?hal=pegawai" class="small">Kelola Pegawai <i class="fas fa-arrow-right"></i></a>
+			</div>
+		</div>
+		<div class="col-md-4 mb-3">
+			<div class="tm-stat">
+				<div class="stat-icon icon-cyan"><i class="fas fa-building"></i></div>
+				<div class="stat-label">Divisi</div>
+				<div class="stat-value"><%= sidebarData.divisiList.length %></div>
+				<a href="/?hal=divisi" class="small">Kelola Divisi <i class="fas fa-arrow-right"></i></a>
+			</div>
+		</div>
+		<div class="col-md-4 mb-3">
+			<div class="tm-stat">
+				<div class="stat-icon icon-violet"><i class="fas fa-briefcase"></i></div>
+				<div class="stat-label">Jabatan</div>
+				<div class="stat-value"><%= sidebarData.jabatanList.length %></div>
+				<a href="/?hal=jabatan" class="small">Kelola Jabatan <i class="fas fa-arrow-right"></i></a>
+			</div>
+		</div>
+	</div>
+<% } %>

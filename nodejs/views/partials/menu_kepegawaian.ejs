@@ -1,0 +1,129 @@
+<nav class="kep-nav" aria-label="Menu utama kepegawaian">
+	<div class="kep-nav-inner">
+		<div class="kep-menu">
+
+			<div class="kep-menu-item">
+				<button type="button" class="kep-menu-btn" aria-haspopup="true" aria-expanded="false">
+					<i class="fas fa-database"></i>
+					<span>Master Data</span>
+					<i class="fas fa-chevron-down kep-caret"></i>
+				</button>
+				<div class="kep-dropdown" role="menu">
+					<a class="kep-dropdown-item" href="/profil-pegawai" role="menuitem"><i class="fas fa-user"></i> Profil pegawai</a>
+					<a class="kep-dropdown-item" href="/presensi" role="menuitem"><i class="fas fa-fingerprint"></i> Presensi</a>
+					<a class="kep-dropdown-item" href="/referensi-data" role="menuitem"><i class="fas fa-list"></i> Referensi data</a>
+					<a class="kep-dropdown-item" href="/kelola-user" role="menuitem"><i class="fas fa-users"></i> Kelola user</a>
+				</div>
+			</div>
+
+			<div class="kep-menu-item">
+				<button type="button" class="kep-menu-btn" aria-haspopup="true" aria-expanded="false">
+					<i class="fas fa-folder-open"></i>
+					<span>Layanan Kepegawaian</span>
+					<i class="fas fa-chevron-down kep-caret"></i>
+				</button>
+				<div class="kep-dropdown" role="menu">
+					<a class="kep-dropdown-item" href="/inbox-surat" role="menuitem"><i class="fas fa-inbox"></i> Inbox surat</a>
+					<a class="kep-dropdown-item" href="/kartu-pegawai" role="menuitem"><i class="fas fa-id-card"></i> Kartu Pegawai</a>
+					<a class="kep-dropdown-item" href="/kepangkatan" role="menuitem"><i class="fas fa-award"></i> Kepangkatan</a>
+					<a class="kep-dropdown-item" href="/gaji-berkala" role="menuitem"><i class="fas fa-file-invoice"></i> Gaji Berkala</a>
+					<a class="kep-dropdown-item" href="/izin-cuti" role="menuitem"><i class="fas fa-plane"></i> Izin Cuti</a>
+					<a class="kep-dropdown-item" href="/izin-cerai" role="menuitem"><i class="fas fa-file-signature"></i> Izin Cerai</a>
+					<a class="kep-dropdown-item" href="/slks" role="menuitem"><i class="fas fa-chart-line"></i> SLKS</a>
+				</div>
+			</div>
+
+			<div class="kep-menu-item">
+				<button type="button" class="kep-menu-btn" aria-haspopup="true" aria-expanded="false">
+					<i class="fas fa-user-tag"></i>
+					<span>Status Kepegawaian</span>
+					<i class="fas fa-chevron-down kep-caret"></i>
+				</button>
+				<div class="kep-dropdown" role="menu">
+					<a class="kep-dropdown-item" href="/pengadaan-pegawai" role="menuitem"><i class="fas fa-user-plus"></i> Pengadaan Pegawai</a>
+					<a class="kep-dropdown-item" href="/pensiun" role="menuitem"><i class="fas fa-user-minus"></i> Pensiun</a>
+					<a class="kep-dropdown-item" href="/pindah-tugas" role="menuitem"><i class="fas fa-exchange-alt"></i> Pindah tugas</a>
+					<a class="kep-dropdown-item" href="/penempatan-tugas" role="menuitem"><i class="fas fa-map-marker-alt"></i> Penempatan tugas</a>
+					<a class="kep-dropdown-item" href="/disiplin-pegawai" role="menuitem"><i class="fas fa-gavel"></i> Disiplin pegawai</a>
+				</div>
+			</div>
+
+			<div class="kep-menu-item">
+				<button type="button" class="kep-menu-btn" aria-haspopup="true" aria-expanded="false">
+					<i class="fas fa-graduation-cap"></i>
+					<span>Pengembangan Pegawai</span>
+					<i class="fas fa-chevron-down kep-caret"></i>
+				</button>
+				<div class="kep-dropdown" role="menu">
+					<a class="kep-dropdown-item" href="/diklat-struktural" role="menuitem"><i class="fas fa-award"></i> Diklat Struktural</a>
+					<a class="kep-dropdown-item" href="/diklat-teknis" role="menuitem"><i class="fas fa-cogs"></i> Diklat Teknis</a>
+					<a class="kep-dropdown-item" href="/izin-belajar" role="menuitem"><i class="fas fa-book-open"></i> Izin belajar</a>
+					<a class="kep-dropdown-item" href="/tugas-belajar" role="menuitem"><i class="fas fa-graduation-cap"></i> Tugas belajar</a>
+				</div>
+			</div>
+
+		</div>
+	</div>
+</nav>
+
+<script>
+(function () {
+	var nav = document.querySelector('.kep-nav');
+	if (!nav) return;
+	var items = nav.querySelectorAll('.kep-menu-item');
+	var btns = nav.querySelectorAll('.kep-menu-btn');
+
+	function closeAll(except) {
+		items.forEach(function (item) {
+			if (item === except) return;
+			item.classList.remove('open');
+			var btn = item.querySelector('.kep-menu-btn');
+			if (btn) btn.setAttribute('aria-expanded', 'false');
+		});
+	}
+
+	btns.forEach(function (btn) {
+		btn.addEventListener('click', function (e) {
+			e.stopPropagation();
+			var item = btn.closest('.kep-menu-item');
+			var isOpen = item.classList.contains('open');
+			closeAll(item);
+			if (!isOpen) {
+				item.classList.add('open');
+				btn.setAttribute('aria-expanded', 'true');
+			} else {
+				btn.setAttribute('aria-expanded', 'false');
+			}
+		});
+	});
+
+	nav.addEventListener('click', function (e) {
+		var link = e.target.closest('.kep-dropdown-item');
+		if (!link) return;
+		nav.querySelectorAll('.kep-dropdown-item').forEach(function (a) {
+			a.classList.remove('active');
+		});
+		link.classList.add('active');
+		try {
+			localStorage.setItem('kepMenuAktif', link.getAttribute('href'));
+		} catch (err) {}
+		closeAll();
+	});
+
+	document.addEventListener('click', function () { closeAll(); });
+	document.addEventListener('keydown', function (e) {
+		if (e.key === 'Escape') closeAll();
+	});
+
+	(function initActive() {
+		var path = location.pathname;
+		var stored = null;
+		try { stored = localStorage.getItem('kepMenuAktif'); } catch (err) {}
+		var target = stored === path ? stored : null;
+		nav.querySelectorAll('.kep-dropdown-item').forEach(function (a) {
+			if (a.getAttribute('href') === path) a.classList.add('active');
+			else if (target && a.getAttribute('href') === target) a.classList.add('active');
+		});
+	})();
+})();
+</script>
