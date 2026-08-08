@@ -1,4 +1,4 @@
-const CACHE = 'timker-v3';
+const CACHE = 'timker-v4';
 const CORE = [
   '/css/bootstrap.min.css',
   '/css/theme.css',
@@ -13,6 +13,9 @@ const CORE = [
   '/icons/icon-512.png',
   '/manifest.webmanifest'
 ];
+
+const OFFLINE_PAGE = '/?hal=home';
+const OFFLINE_ASSET = new Response('', { status: 504, statusText: 'Gateway Timeout' });
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -30,32 +33,58 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+function cachePut(cacheName, request, response) {
+  return caches.open(cacheName).then((cache) => cache.put(request, response));
+}
+
 self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
+  const req = event.request;
+  const url = new URL(req.url);
 
-  if (event.request.method !== 'GET') return;
-
+  if (req.method !== 'GET') return;
   if (url.origin !== location.origin) return;
-
   if (url.pathname.startsWith('/controller/')) return;
 
-  if (event.request.mode === 'navigate') {
-    event.respondWith(fetch(event.request));
+  // Navigasi halaman: jaringan dulu, bila gagal pakai cache halaman
+  // terakhir yang pernah dibuka, lalu halaman beranda, terakhir pesan luring.
+  if (req.mode === 'navigate') {
+    event.respondWith(
+      fetch(req)
+        .then((res) => {
+          if (res && res.status === 200) {
+            cachePut(CACHE, req, res.clone());
+          }
+          return res;
+        })
+        .catch(() =>
+          caches.match(req).then((cached) =>
+            cached ||
+            caches.match(OFFLINE_PAGE).then((home) =>
+              home ||
+              new Response('Luring. Periksa kembali koneksi internet Anda.', {
+                status: 503,
+                statusText: 'Service Unavailable',
+                headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+              })
+            )
+          )
+        )
+    );
     return;
   }
 
+  // Aset statis: cache dulu, bila tidak ada ambil dari jaringan lalu simpan.
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const fetched = fetch(event.request)
-        .then((response) => {
-          if (response && response.status === 200) {
-            const copy = response.clone();
-            caches.open(CACHE).then((cache) => cache.put(event.request, copy));
+    caches.match(req)
+      .then((cached) => {
+        if (cached) return cached;
+        return fetch(req).then((res) => {
+          if (res && res.status === 200) {
+            cachePut(CACHE, req, res.clone());
           }
-          return response;
-        })
-        .catch(() => cached);
-      return cached || fetched;
-    })
+          return res;
+        });
+      })
+      .catch(() => OFFLINE_ASSET)
   );
 });
