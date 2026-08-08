@@ -1,0 +1,19 @@
+<footer class="tm-footer-mini">
+	<div class="container-fluid">
+		<div class="row align-items-center">
+			<div class="col-md-6 text-center text-md-left small">
+				&copy; <span id="tmFooterYear"></span> Tim Kerja Bidang Pendidikan Sekolah Dasar Kecamatan Lemahabang
+			</div>
+			<div class="col-md-6 text-center text-md-right small">
+				Timker Kepegawaian
+			</div>
+		</div>
+	</div>
+</footer>
+
+<script>
+	(function () {
+		var el = document.getElementById('tmFooterYear');
+		if (el) el.textContent = new Date().getFullYear();
+	})();
+</script>

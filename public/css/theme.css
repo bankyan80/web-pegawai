@@ -869,6 +869,22 @@ a:hover {
 }
 
 /* ============ FOOTER ============ */
+.tm-footer-mini {
+  margin-top: 2rem;
+  background: #0f172a;
+  color: #94a3b8;
+  padding: 0.8rem 0;
+  font-size: 0.8rem;
+}
+
+.tm-footer-mini a {
+  color: #c7d2fe;
+}
+
+.tm-footer-mini a:hover {
+  color: #fff;
+}
+
 .tm-footer {
   margin-top: 2rem;
   background: #0f172a;
