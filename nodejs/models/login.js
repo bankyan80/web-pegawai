@@ -1,10 +1,10 @@
-const pool = require('../config/db');
+const sb = require('../config/supabase');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 
 class Login {
   async otentikasi(username, password) {
-    const [rows] = await pool.query('SELECT * FROM member WHERE username=?', [username]);
+    const rows = await sb.select('member', { filters: ['username=eq.' + encodeURIComponent(username)] });
     const rs = rows[0];
     if (!rs) {
       return null;
@@ -22,67 +22,77 @@ class Login {
   }
 
   async gantiPassword(id, password) {
-    const sql = 'UPDATE member SET passwors=? WHERE id=?';
-    await pool.query(sql, [bcrypt.hashSync(password, 10), id]);
+    await sb.update('member', id, { passwors: bcrypt.hashSync(password, 10) });
   }
 
   async dataUser() {
-    const [rows] = await pool.query('select * from member');
-    return rows;
+    return sb.select('member');
   }
 
   async getUser(id) {
-    const [rows] = await pool.query('select * from member where id=?', [id]);
+    const rows = await sb.select('member', { eq: { col: 'id', val: id } });
     return rows[0];
   }
 
   async simpan(data) {
-    const sql =
-      'INSERT INTO member(fullname,username,passwors,role,email,foto) VALUES (?,?,?,?,?,?)';
-    const values = [data[0], data[1], bcrypt.hashSync(data[2], 10), data[3], data[4], data[5]];
-    await pool.query(sql, values);
+    const row = {
+      fullname: data[0],
+      username: data[1],
+      passwors: bcrypt.hashSync(data[2], 10),
+      role: data[3],
+      email: data[4],
+      foto: data[5]
+    };
+    await sb.insert('member', row);
   }
 
   async ubah(data, id) {
     if (!data[2]) {
-      const sql = 'update member set fullname=?, username=?, role=?, email=?, foto=? where id=?';
-      await pool.query(sql, [data[0], data[1], data[3], data[4], data[5], id]);
+      await sb.update('member', id, {
+        fullname: data[0],
+        username: data[1],
+        role: data[3],
+        email: data[4],
+        foto: data[5]
+      });
     } else {
-      const sql =
-        'update member set fullname=?, username=?, passwors=?, role=?, email=?, foto=? where id=?';
-      await pool.query(sql, [
-        data[0],
-        data[1],
-        bcrypt.hashSync(data[2], 10),
-        data[3],
-        data[4],
-        data[5],
-        id
-      ]);
+      await sb.update('member', id, {
+        fullname: data[0],
+        username: data[1],
+        passwors: bcrypt.hashSync(data[2], 10),
+        role: data[3],
+        email: data[4],
+        foto: data[5]
+      });
     }
   }
 
   async hapus(id) {
-    const sql = 'delete from member where id=?';
-    await pool.query(sql, [id]);
+    await sb.remove('member', id);
   }
 
   async terlampauiBatas(username, ip) {
-    const sql = `SELECT COUNT(*) as total FROM login_attempt
-                 WHERE username=? AND ip=?
-                 AND attempted_at > datetime('now','localtime','-15 minutes')`;
-    const [rows] = await pool.query(sql, [username, ip]);
-    return parseInt(rows[0].total, 10) >= 5;
+    const rows = await sb.select('login_attempt', {
+      filters: [
+        'username=eq.' + encodeURIComponent(username),
+        'ip=eq.' + encodeURIComponent(ip)
+      ]
+    });
+    const cutoff = Date.now() - 15 * 60 * 1000;
+    const withinWindow = rows.filter((r) => new Date(r.attempted_at).getTime() >= cutoff);
+    return withinWindow.length >= 5;
   }
 
   async catatPercobaan(username, ip) {
-    const sql = "INSERT INTO login_attempt(username, ip, attempted_at) VALUES (?,?,datetime('now','localtime'))";
-    await pool.query(sql, [username, ip]);
+    await sb.insert('login_attempt', {
+      username,
+      ip,
+      attempted_at: new Date().toISOString()
+    });
   }
 
   async hapusPercobaan(username) {
-    const sql = 'DELETE FROM login_attempt WHERE username=?';
-    await pool.query(sql, [username]);
+    await sb.removeWhere('login_attempt', ['username=eq.' + encodeURIComponent(username)]);
   }
 }
 

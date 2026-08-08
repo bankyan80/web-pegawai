@@ -84,20 +84,23 @@ const users = [
   { username: 'audit', nama: 'Budi Santoso', email: 'audit@mail.test', role: 'Admin Kepegawaian', unit: 'Bidang Penilaian Kinerja', status: 'Aktif', login: '2026-08-08 06:58:19' }
 ];
 
-const presensi = [
-  { tanggal: '2026-08-07', nip: '199004152010011002', nama: 'Citra Lestari, S.Kom', masuk: '07:58', pulang: '16:02', status: 'Hadir', ket: '-' },
-  { tanggal: '2026-08-07', nip: '198703222012021003', nama: 'Hendra Wijaya', masuk: '08:12', pulang: '16:30', status: 'Hadir', ket: '-' },
-  { tanggal: '2026-08-07', nip: '1992081032014011004', nama: 'Kartika Hidayat, S.Sos', masuk: '07:45', pulang: '15:55', status: 'Hadir', ket: '-' },
-  { tanggal: '2026-08-07', nip: '198510052009011005', nama: 'Lukman Maulana', masuk: '-', pulang: '-', status: 'Izin', ket: 'Izin keluarga' },
-  { tanggal: '2026-08-07', nip: '199112132017041006', nama: 'Maya Ramadhan', masuk: '07:50', pulang: '16:10', status: 'Hadir', ket: '-' },
-  { tanggal: '2026-08-08', nip: '199004152010011002', nama: 'Citra Lestari, S.Kom', masuk: '08:20', pulang: '16:40', status: 'Hadir', ket: 'Terlambat 20 menit' },
-  { tanggal: '2026-08-08', nip: '198703222012021003', nama: 'Hendra Wijaya', masuk: '07:59', pulang: '16:05', status: 'Hadir', ket: '-' },
-  { tanggal: '2026-08-08', nip: '198605302011021008', nama: 'Oki Nugraha', masuk: '-', pulang: '-', status: 'Cuti', ket: 'Cuti tahunan' },
-  { tanggal: '2026-08-08', nip: '1992081032014011004', nama: 'Kartika Hidayat, S.Sos', masuk: '08:01', pulang: '16:22', status: 'Hadir', ket: '-' },
-  { tanggal: '2026-08-08', nip: '198201122011011009', nama: 'Putri Kusuma', masuk: '10:30', pulang: '-', status: 'Dinas Luar', ket: 'Rapat koordinasi' },
-  { tanggal: '2026-08-08', nip: '198910252015021010', nama: 'Rahmat Maulana', masuk: '-', pulang: '-', status: 'Sakit', ket: 'Surat dokter terlampir' },
-  { tanggal: '2026-08-08', nip: '198312192011011011', nama: 'Sari Hartono', masuk: '-', pulang: '-', status: 'Alpa', ket: 'Tanpa keterangan' }
-];
+// Arsip presensi: file PDF per pegawai per tahun & bulan.
+const bulanIndo = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+const presensi = [];
+for (let i = 0; i < pegawai.length; i++) {
+  const p = pegawai[i];
+  const tahun = 2025 + Math.floor(rand() * 2);
+  const bln = bulanIndo[Math.floor(rand() * 12)];
+  presensi.push({
+    id: i + 1,
+    nama: p.nama,
+    nip: p.nip,
+    tahun: String(tahun),
+    bulan: bln,
+    file: '',
+    keterangan: ''
+  });
+}
 
 const referensi = {
   jabatan: [

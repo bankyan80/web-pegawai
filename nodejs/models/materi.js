@@ -1,29 +1,25 @@
-const pool = require('../config/db');
+const sb = require('../config/supabase');
 
 class Materi {
   async dataMateri() {
-    const [rows] = await pool.query('select * from materi');
-    return rows;
+    return sb.select('materi');
   }
 
   async getMateri(id) {
-    const [rows] = await pool.query('select * from materi where id=?', [id]);
+    const rows = await sb.select('materi', { eq: { col: 'id', val: id } });
     return rows[0];
   }
 
   async ubah(data) {
-    const sql = 'update materi set nama=? where id=?';
-    await pool.query(sql, data);
+    await sb.update('materi', data[1], { nama: data[0] });
   }
 
   async hapus(id) {
-    const sql = 'delete from materi where id=?';
-    await pool.query(sql, [id]);
+    await sb.remove('materi', id);
   }
 
   async input(data) {
-    const sql = 'insert into materi (nama) values (?)';
-    await pool.query(sql, data);
+    await sb.insert('materi', { nama: data[0] });
   }
 }
 

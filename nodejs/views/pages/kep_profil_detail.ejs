@@ -3,7 +3,7 @@
 <div class="kep-detail-pegawai">
 	<div class="kep-dp-card">
 		<div class="kep-dp-foto">
-			<img src="/images/no_photo.png" alt="Foto Pegawai" />
+			<img src="<%= p.foto || '/images/no_photo.png' %>" alt="Foto Pegawai" />
 		</div>
 		<div class="kep-dp-ident">
 			<h5 class="kep-dp-nama"><%= p.nama %></h5>
@@ -13,7 +13,7 @@
 		<div class="kep-dp-actions">
 			<button type="button" class="btn btn-outline-primary btn-kep-sm kep-print"><i class="fas fa-print"></i> Cetak Profil</button>
 			<button type="button" class="btn btn-outline-primary btn-kep-sm"><i class="fas fa-edit"></i> Edit</button>
-			<button type="button" class="btn btn-outline-danger btn-kep-sm kep-hapus-single"><i class="fas fa-trash"></i> Hapus</button>
+			<button type="button" class="btn btn-outline-danger btn-kep-sm kep-hapus-single" data-id="<%= p.id %>"><i class="fas fa-trash"></i> Hapus</button>
 		</div>
 	</div>
 

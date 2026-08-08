@@ -1,17 +1,19 @@
-<div class="modal fade" id="<%= modal.id %>" tabindex="-1" role="dialog" aria-hidden="true">
+<div class="modal fade" id="<%= modal.id %>" tabindex="-1" role="dialog" aria-hidden="true" data-title-ori="<%= modal.title %>">
 	<div class="modal-dialog modal-lg modal-dialog-centered" role="document">
 		<div class="modal-content kep-modal">
 			<div class="modal-header">
 				<h5 class="modal-title"><i class="fas fa-pen-square"></i> <span class="kep-modal-title"><%= modal.title %></span></h5>
 				<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
 			</div>
-			<form class="kep-form" data-modal="<%= modal.id %>" data-table="<%= modal.table || '' %>" novalidate>
+			<form class="kep-form" data-modal="<%= modal.id %>" data-table="<%= modal.table || '' %>" data-nip-map='<%- modal.nipMap ? JSON.stringify(modal.nipMap) : '' %>' novalidate>
 				<div class="modal-body">
 					<div class="row">
 						<% modal.fields.forEach(function (f) { %>
 							<div class="col-md-6 form-group">
 								<label for="<%= modal.id %>_<%= f.name %>"><%= f.label %><% if (f.required) { %> <span class="text-danger">*</span><% } %></label>
-								<% if (f.type === 'select') { %>
+								<% if (f.type === 'hidden') { %>
+								<input type="hidden" name="<%= f.name %>" value="<%= f.value !== undefined ? f.value : '' %>" />
+							<% } else if (f.type === 'select') { %>
 									<select class="form-control" name="<%= f.name %>" id="<%= modal.id %>_<%= f.name %>" data-col="<%= f.col !== undefined ? f.col : '' %>" <% if (f.required) { %>required<% } %>>
 										<option value="">-- Pilih <%= f.label %> --</option>
 										<% (f.options || []).forEach(function (o) { %>

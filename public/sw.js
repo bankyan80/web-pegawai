@@ -1,4 +1,4 @@
-const CACHE = 'timker-v2';
+const CACHE = 'timker-v3';
 const CORE = [
   '/css/bootstrap.min.css',
   '/css/theme.css',

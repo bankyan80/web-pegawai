@@ -1,5 +1,4 @@
 require('dotenv').config();
-require('./config/db');
 const express = require('express');
 const cookieSession = require('cookie-session');
 const crypto = require('crypto');
@@ -7,6 +6,7 @@ const path = require('path');
 
 const pages = require('./routes/pages');
 const controllers = require('./routes/controllers');
+const apiKep = require('./routes/api-kep');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -17,6 +17,7 @@ app.set('views', path.join(__dirname, 'views'));
 app.set('trust proxy', true);
 
 app.use(express.urlencoded({ extended: false }));
+app.use(express.json({ limit: '8mb' }));
 
 app.use(cookieSession({
   name: 'kepegawaian_session',
@@ -53,6 +54,7 @@ app.use('/sw.js', express.static(path.join(publicRoot, 'sw.js')));
 
 app.use('/', pages);
 app.use('/controller', controllers);
+app.use('/api/kep', apiKep);
 
 app.use((err, req, res, next) => {
   console.error(err);

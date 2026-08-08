@@ -25,6 +25,69 @@
   var PAGE_SIZE = 8;
   var state = {};
 
+  var TABLE_MODUL = {
+    tblPegawai: 'pegawai',
+    tblPresensi: 'presensi',
+    tblUser: 'users',
+    tblSurat: 'surat',
+    tblRw: 'kepangkatan',
+    tblUsl: 'kepangkatan',
+    tblPro: 'kepangkatan',
+    tblSel: 'kepangkatan',
+    tblGaji: 'gajiberkala',
+    tblCuti: 'cuti',
+    tblCerai: 'izincerai',
+    tblSlks: 'slks',
+    tblPengadaan: 'pengadaan',
+    tblPensiun: 'pensiun',
+    tblPindah: 'pindah_tugas',
+    tblTempat: 'penempatan',
+    tblDisiplin: 'disiplin',
+    tblDiklatS: 'diklat_struktural',
+    tblDiklatT: 'diklat_teknis',
+    tblBelajar: 'izin_belajar',
+    tblTugas: 'tugas_belajar'
+  };
+
+  function tableModul(tid) {
+    if (TABLE_MODUL[tid]) return TABLE_MODUL[tid];
+    if (tid && tid.indexOf('tblRef') === 0) return 'referensi';
+    return '';
+  }
+
+  function csrfToken() {
+    var m = document.querySelector('meta[name="csrf-token"]');
+    return m ? m.getAttribute('content') : '';
+  }
+
+  function apiHeaders() {
+    return { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken() };
+  }
+
+  function uploadFile(bucket, file, cb) {
+    var reader = new FileReader();
+    reader.onload = function () {
+      var base64 = String(reader.result).split(',')[1];
+      fetch('/api/kep/upload/' + bucket, {
+        method: 'POST',
+        headers: apiHeaders(),
+        body: JSON.stringify({
+          filename: Date.now() + '-' + file.name.replace(/[^a-zA-Z0-9._-]/g, '_'),
+          contentType: file.type || 'application/octet-stream',
+          base64: base64
+        })
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (res) {
+          if (res.ok && res.url) cb(null, res.url);
+          else cb(res.error || 'Upload gagal');
+        })
+        .catch(function (err) { cb(err); });
+    };
+    reader.onerror = function () { cb('Gagal membaca file.'); };
+    reader.readAsDataURL(file);
+  }
+
   function getRows(tid) {
     var tbl = document.querySelector('table#' + CSS.escape(tid));
     return tbl ? Array.prototype.slice.call(tbl.querySelectorAll('tbody tr')) : [];
@@ -112,7 +175,15 @@
       applyTable(tid, 0);
     }
     if (e.target.classList.contains('kep-import')) {
-      kepToast(e.target.getAttribute('data-toast') || 'Import berhasil diproses.');
+      var f = e.target.files && e.target.files[0];
+      if (!f) return;
+      uploadFile('dokumen', f, function (err, url) {
+        if (err) {
+          kepToast('Upload gagal: ' + err);
+        } else {
+          kepToast('File berhasil diunggah ke storage.');
+        }
+      });
       e.target.value = '';
     }
   });
@@ -137,10 +208,23 @@
     try { record = JSON.parse(tr.getAttribute('data-record') || '{}'); } catch (err) {}
 
     if (act === 'hapus') {
+      var modul = tableModul(tid);
+      if (!modul || !record.id) {
+        kepToast('Data ini tidak dapat dihapus.');
+        return;
+      }
       if (confirm('Yakin ingin menghapus data ini?')) {
-        tr.remove();
-        if (tid) applyTable(tid);
-        kepToast('Data berhasil dihapus (demo).');
+        fetch('/api/kep/' + modul + '/' + record.id, { method: 'DELETE', headers: apiHeaders() })
+          .then(function (r) { return r.json(); })
+          .then(function (res) {
+            if (res.ok) {
+              kepToast('Data berhasil dihapus.');
+              setTimeout(function () { location.reload(); }, 600);
+            } else {
+              kepToast('Gagal menghapus: ' + (res.error || 'unknown'));
+            }
+          })
+          .catch(function () { kepToast('Terjadi kesalahan saat menghapus.'); });
       }
     } else if (act === 'edit') {
       openEditModal(actBtn, record);
@@ -148,8 +232,15 @@
       openDetailModal(tr);
     } else if (act === 'cetak') {
       window.print();
+    } else if (act === 'unduh') {
+      var fileUrl = record.file || '';
+      if (fileUrl) {
+        window.open(fileUrl, '_blank');
+      } else {
+        kepToast('Belum ada file PDF untuk data ini.');
+      }
     } else {
-      kepToast('Aksi "' + act + '" berhasil diproses (demo).');
+      kepToast('Aksi "' + act + '" berhasil diproses.');
     }
   });
 
@@ -162,12 +253,27 @@
     }
     var title = modal.querySelector('.kep-modal-title');
     if (title) title.textContent = 'Edit Data';
+    modal.setAttribute('data-editing-id', record.id || '');
     Object.keys(record || {}).forEach(function (name) {
       var input = modal.querySelector('[name="' + name + '"]');
       if (input) input.value = record[name];
     });
     $(modal).modal('show');
   }
+
+  // Saat modal dibuka via tombol "Tambah" (bukan Edit), reset status edit & judul.
+  $(document).on('show.bs.modal', '.modal', function () {
+    var form = this.querySelector('.kep-form');
+    if (!form) return;
+    if (form.getAttribute('data-editing-id')) return;
+    var title = this.querySelector('.kep-modal-title');
+    var ori = this.getAttribute('data-title-ori');
+    if (title && ori) title.textContent = ori;
+  });
+  $(document).on('hidden.bs.modal', '.modal', function () {
+    var form = this.querySelector('.kep-form');
+    if (form) form.removeAttribute('data-editing-id');
+  });
 
   function openDetailModal(tr) {
     var modal = document.getElementById('kepDetailModal');
@@ -206,6 +312,18 @@
     if (pbtn) window.print();
   });
 
+  // Auto-fill NIP saat memilih nama pegawai pada modal (data atribut nip-map).
+  document.addEventListener('change', function (e) {
+    var sel = e.target.closest('select[name="nama"]');
+    if (!sel) return;
+    var form = sel.closest('.kep-form');
+    if (!form) return;
+    var map = {};
+    try { map = JSON.parse(form.getAttribute('data-nip-map') || '{}'); } catch (err) {}
+    var nipInput = form.querySelector('input[name="nip"]');
+    if (nipInput && map[sel.value]) nipInput.value = map[sel.value];
+  });
+
   document.addEventListener('submit', function (e) {
     var form = e.target;
     if (!form.classList.contains('kep-form')) return;
@@ -215,11 +333,69 @@
       kepToast('Periksa kembali isian wajib.');
       return;
     }
-    kepToast('Data berhasil disimpan (demo).');
-    var modal = document.getElementById(form.getAttribute('data-modal'));
-    if (modal) $(modal).modal('hide');
-    form.reset();
-    form.classList.remove('was-validated');
+
+    var modul = tableModul(form.getAttribute('data-table'));
+    var editingId = form.getAttribute('data-editing-id') || '';
+    if (!modul) {
+      kepToast('Modul tidak dikenali untuk penyimpanan.');
+      return;
+    }
+
+    var filePromises = [];
+    var fileFields = Array.prototype.slice.call(form.querySelectorAll('input[type="file"]'));
+    fileFields.forEach(function (f) {
+      if (f.files && f.files.length) {
+        var bucket = (f.getAttribute('name') === 'foto') ? 'foto' : 'dokumen';
+        filePromises.push(
+          new Promise(function (resolve) {
+            uploadFile(bucket, f.files[0], function (err, url) {
+              if (err) { resolve({ name: f.getAttribute('name'), value: '', error: err }); }
+              else { resolve({ name: f.getAttribute('name'), value: url }); }
+            });
+          })
+        );
+      }
+    });
+
+    var payload = {};
+    Array.prototype.slice.call(form.querySelectorAll('[name]')).forEach(function (el) {
+      var name = el.getAttribute('name');
+      if (el.type === 'file') return;
+      payload[name] = el.value;
+    });
+
+    Promise.all(filePromises).then(function (results) {
+      for (var i = 0; i < results.length; i++) {
+        if (results[i].error) {
+          kepToast('Upload gagal: ' + results[i].error);
+          return;
+        }
+        payload[results[i].name] = results[i].value;
+      }
+
+      var url = '/api/kep/' + modul + (editingId ? '/' + editingId : '');
+      var method = editingId ? 'PUT' : 'POST';
+      fetch(url, {
+        method: method,
+        headers: apiHeaders(),
+        body: JSON.stringify(payload)
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (res) {
+          if (res.ok) {
+            kepToast('Data berhasil disimpan.');
+            var modal = document.getElementById(form.getAttribute('data-modal'));
+            if (modal) $(modal).modal('hide');
+            form.reset();
+            form.classList.remove('was-validated');
+            form.removeAttribute('data-editing-id');
+            setTimeout(function () { location.reload(); }, 600);
+          } else {
+            kepToast('Gagal menyimpan: ' + (res.error || 'unknown'));
+          }
+        })
+        .catch(function () { kepToast('Terjadi kesalahan saat menyimpan.'); });
+    });
   });
 
   document.addEventListener('click', function (e) {
@@ -250,8 +426,23 @@
   document.addEventListener('click', function (e) {
     var del = e.target.closest('.kep-hapus-single');
     if (!del) return;
+    var id = del.getAttribute('data-id');
+    if (!id) {
+      kepToast('Data ini tidak dapat dihapus dari sini.');
+      return;
+    }
     if (confirm('Yakin ingin menghapus pegawai ini?')) {
-      kepToast('Data pegawai dihapus (demo).');
+      fetch('/api/kep/pegawai/' + id, { method: 'DELETE', headers: apiHeaders() })
+        .then(function (r) { return r.json(); })
+        .then(function (res) {
+          if (res.ok) {
+            kepToast('Pegawai berhasil dihapus.');
+            setTimeout(function () { location.href = '/profil-pegawai'; }, 600);
+          } else {
+            kepToast('Gagal menghapus: ' + (res.error || 'unknown'));
+          }
+        })
+        .catch(function () { kepToast('Terjadi kesalahan saat menghapus.'); });
     }
   });
 

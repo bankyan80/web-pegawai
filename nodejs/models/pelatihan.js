@@ -1,47 +1,79 @@
-const pool = require('../config/db');
+const sb = require('../config/supabase');
+
+async function semuaRelasi() {
+  const [pel, peg, divisi, jabatan, materi] = await Promise.all([
+    sb.select('pelatihan'),
+    sb.select('pegawai_legacy'),
+    sb.select('divisi'),
+    sb.select('jabatan'),
+    sb.select('materi')
+  ]);
+  const pMap = {};
+  const jMap = {};
+  const dMap = {};
+  const mMap = {};
+  peg.forEach((p) => {
+    pMap[p.id] = p;
+  });
+  jabatan.forEach((j) => {
+    jMap[j.id] = j.nama;
+  });
+  divisi.forEach((d) => {
+    dMap[d.id] = d.nama;
+  });
+  materi.forEach((m) => {
+    mMap[m.id] = m.nama;
+  });
+  return pel.map((x) => {
+    const p = pMap[x.pegawai_id] || {};
+    return {
+      ...x,
+      nama: p.nama || '',
+      divisi: dMap[p.iddivisi] || '',
+      jabatan: jMap[p.idjabatan] || '',
+      materi: mMap[x.materi_id] || ''
+    };
+  });
+}
 
 class Pelatihan {
   async dataPelatihan() {
-    const [rows] = await pool.query(
-      `SELECT pel.*, peg.nama, d.nama as divisi, j.nama as jabatan, m.nama as materi
-       from pelatihan pel
-       inner join pegawai peg on peg.id = pel.pegawai_id
-       inner join divisi d on d.id = peg.iddivisi
-       inner join jabatan j on j.id = peg.idjabatan
-       inner join materi m on m.id = pel.materi_id`
-    );
-    return rows;
+    return semuaRelasi();
   }
 
   async getPelatihan(id) {
-    const [rows] = await pool.query(
-      `SELECT pel.*, peg.nama, d.nama as divisi, j.nama as jabatan, m.nama as materi
-       from pelatihan pel
-       inner join pegawai peg on peg.id = pel.pegawai_id
-       inner join divisi d on d.id = peg.iddivisi
-       inner join jabatan j on j.id = peg.idjabatan
-       inner join materi m on m.id = pel.materi_id
-       WHERE pel.id = ?`,
-      [id]
-    );
-    return rows[0];
+    const rows = await sb.select('pelatihan', { eq: { col: 'id', val: id } });
+    const x = rows[0];
+    if (!x) return undefined;
+    const list = await semuaRelasi();
+    return list.find((r) => r.id === x.id);
   }
 
   async simpan(data) {
-    const sql =
-      'INSERT INTO pelatihan(pegawai_id,materi_id,tgl_mulai,tgl_akhir,keterangan) VALUES (?,?,?,?,?)';
-    await pool.query(sql, data);
+    const row = {
+      pegawai_id: data[0] || null,
+      materi_id: data[1] || null,
+      tgl_mulai: data[2] || '',
+      tgl_akhir: data[3] || '',
+      keterangan: data[4] || ''
+    };
+    await sb.insert('pelatihan', row);
   }
 
   async ubah(data) {
-    const sql =
-      'UPDATE pelatihan SET pegawai_id=?,materi_id=?,tgl_mulai=?,tgl_akhir=?,keterangan=? WHERE id=?';
-    await pool.query(sql, data);
+    const id = data[5];
+    const row = {
+      pegawai_id: data[0] || null,
+      materi_id: data[1] || null,
+      tgl_mulai: data[2] || '',
+      tgl_akhir: data[3] || '',
+      keterangan: data[4] || ''
+    };
+    await sb.update('pelatihan', id, row);
   }
 
   async hapus(id) {
-    const sql = 'DELETE FROM pelatihan WHERE id=?';
-    await pool.query(sql, [id]);
+    await sb.remove('pelatihan', id);
   }
 }
 

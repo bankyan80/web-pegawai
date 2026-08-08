@@ -7,7 +7,7 @@ const Jabatan = require('../models/jabatan');
 const Gaji = require('../models/gaji');
 const Pelatihan = require('../models/pelatihan');
 const Materi = require('../models/materi');
-const D = require('../dummy-data');
+const kepdata = require('../models/kepdata');
 
 const router = express.Router();
 
@@ -375,9 +375,10 @@ router.use([
 router.use(['/kelola-user'], requireAdmin);
 
 router.get('/profil-pegawai', async (req, res, next) => {
+  const D = await kepdata.getKepData();
   const rows = D.pegawai.map((p) => [p.nip, p.nama, p.jenis, p.jabatan, p.unit, p.status]);
   const records = D.pegawai.map((p) => ({
-    nip: p.nip, nik: p.nik, nama: p.nama, ttl: p.ttl, jk: p.jk, alamat: p.alamat,
+    id: p.id, nip: p.nip, nik: p.nik, nama: p.nama, ttl: p.ttl, jk: p.jk, alamat: p.alamat,
     hp: p.hp, email: p.email, jenis: p.jenis, pangkat: p.pangkat, golongan: p.golongan,
     jabatan: p.jabatan, unit: p.unit, tmt: p.tmt, status: p.status
   }));
@@ -440,7 +441,8 @@ router.get('/profil-pegawai', async (req, res, next) => {
         { name: 'jabatan', label: 'Jabatan', type: 'select', options: D.jabatanList },
         { name: 'unit', label: 'Unit Kerja', type: 'select', options: D.unitKerja },
         { name: 'tmt', label: 'TMT', type: 'date' },
-        { name: 'status', label: 'Status', type: 'select', options: ['Aktif', 'Cuti', 'Pensiun'] }
+        { name: 'status', label: 'Status', type: 'select', options: ['Aktif', 'Cuti', 'Pensiun'] },
+        { name: 'foto', label: 'Foto (opsional)', type: 'file' }
       ]
     }
   };
@@ -448,6 +450,7 @@ router.get('/profil-pegawai', async (req, res, next) => {
 });
 
 router.get('/profil-pegawai/detail/:id', async (req, res, next) => {
+  const D = await kepdata.getKepData();
   const p = D.detailPegawai(parseInt(req.params.id, 10));
   const cfg = {
     breadcrumb: ['Master Data', 'Profil Pegawai', 'Detail'],
@@ -458,70 +461,119 @@ router.get('/profil-pegawai/detail/:id', async (req, res, next) => {
   return renderModul(res, req, 'kep_profil_detail', cfg);
 });
 
+const BULAN_INDO = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+function pdfLink(v) {
+  if (!v) {
+    return '<span class="text-muted">Belum upload</span>';
+  }
+  return '<a class="btn btn-sm btn-outline-primary" target="_blank" rel="noopener" href="' + v + '"><i class="fas fa-file-pdf text-danger"></i> Buka PDF</a>';
+}
+
 router.get('/presensi', async (req, res, next) => {
-  const rows = D.presensi.map((r) => [r.tanggal, r.nip, r.nama, r.masuk, r.pulang, r.status, r.ket]);
-  const records = D.presensi.map((r) => ({ tanggal: r.tanggal, nip: r.nip, nama: r.nama, masuk: r.masuk, pulang: r.pulang, status: r.status, ket: r.ket }));
+  const D = await kepdata.getKepData();
+  const member = req.session.MEMBER;
+  const isStaff = member && member.role === 'staff';
+  const fullname = member ? String(member.fullname || '').trim().toLowerCase() : '';
+
+  // Staff hanya melihat arsip presensi miliknya (cocok dengan nama login).
+  let list = D.presensi;
+  if (isStaff) {
+    list = D.presensi.filter((r) => String(r.nama || '').trim().toLowerCase() === fullname);
+  }
+
+  // Kelompokkan sebagai "folder tahunan".
+  const tahunSet = [];
+  list.forEach((r) => {
+    if (r.tahun && tahunSet.indexOf(r.tahun) === -1) tahunSet.push(r.tahun);
+  });
+  if (!tahunSet.length) tahunSet.push(String(new Date().getFullYear()));
+  tahunSet.sort().reverse();
+
+  const recordsByTahun = {};
+  list.forEach((r) => {
+    if (!recordsByTahun[r.tahun]) recordsByTahun[r.tahun] = [];
+    recordsByTahun[r.tahun].push({
+      id: r.id,
+      nama: r.nama,
+      nip: r.nip,
+      tahun: r.tahun,
+      bulan: r.bulan,
+      file: r.file || '',
+      keterangan: r.keterangan || ''
+    });
+  });
+
+  const tabs = tahunSet.map((tahun, ti) => {
+    const tid = 'tblPrs' + ti;
+    const mid = 'modPrs' + ti;
+    const recs = recordsByTahun[tahun] || [];
+    const rows = recs.map((r) => [r.nama, r.nip, r.bulan, r.file, r.keterangan]);
+    return {
+      id: 'tabPrs' + ti,
+      label: 'Tahun ' + tahun,
+      icon: 'fa-folder',
+      toolbar: {
+        search: { table: tid, placeholder: 'Cari nama/NIP' },
+        filters: [
+          { table: tid, col: 2, label: 'Filter Bulan', options: BULAN_INDO }
+        ],
+        buttons: isStaff
+          ? [{ type: 'print', label: 'Cetak', icon: 'fa-print' }]
+          : [
+              { type: 'modal', modal: mid, label: 'Upload PDF', icon: 'fa-upload' },
+              { type: 'print', label: 'Cetak', icon: 'fa-print' },
+              { type: 'export', table: tid, label: 'Export', icon: 'fa-file-export' }
+            ]
+      },
+      table: {
+        id: tid,
+        columns: [
+          { label: 'Nama Pegawai' },
+          { label: 'NIP' },
+          { label: 'Bulan' },
+          { label: 'File Presensi', format: (v) => pdfLink(v) },
+          { label: 'Keterangan' }
+        ],
+        rows,
+        records: recs,
+        actions: isStaff
+          ? [{ act: 'detail', icon: 'fa-eye', label: 'Lihat' }, { act: 'unduh', icon: 'fa-download', label: 'Unduh' }]
+          : [
+              { act: 'detail', icon: 'fa-eye', label: 'Lihat' },
+              { act: 'unduh', icon: 'fa-download', label: 'Unduh' },
+              { act: 'edit', icon: 'fa-edit', label: 'Edit', modal: mid },
+              { act: 'hapus', icon: 'fa-trash', label: 'Hapus' }
+            ]
+      },
+      modal: isStaff ? null : {
+        id: mid,
+        title: 'Upload PDF Presensi - Tahun ' + tahun,
+        table: tid,
+        nipMap: D.pegawai.reduce((acc, p) => { acc[p.nama] = p.nip; return acc; }, {}),
+        fields: [
+          { name: 'nama', label: 'Nama Pegawai', type: 'select', options: D.pegawai.map((p) => p.nama), required: true },
+          { name: 'nip', label: 'NIP' },
+          { name: 'tahun', type: 'hidden', value: tahun },
+          { name: 'bulan', label: 'Bulan', type: 'select', options: BULAN_INDO, required: true },
+          { name: 'file', label: 'File PDF Presensi', type: 'file', required: true },
+          { name: 'keterangan', label: 'Keterangan', type: 'textarea' }
+        ]
+      }
+    };
+  });
+
   const cfg = {
     breadcrumb: ['Master Data', 'Presensi'],
-    title: 'Presensi Pegawai',
-    desc: 'Rekapitulasi kehadiran pegawai harian',
-    primaryBtn: { label: 'Input Presensi', modal: 'modalPresensi', icon: 'fa-plus' },
-    stats: [
-      { label: 'Hadir', value: countBy(D.presensi, 'status', 'Hadir'), icon: 'fa-check-circle', color: 'green' },
-      { label: 'Izin', value: countBy(D.presensi, 'status', 'Izin'), icon: 'fa-file-signature', color: 'amber' },
-      { label: 'Cuti', value: countBy(D.presensi, 'status', 'Cuti'), icon: 'fa-plane', color: 'violet' },
-      { label: 'Dinas Luar', value: countBy(D.presensi, 'status', 'Dinas Luar'), icon: 'fa-briefcase', color: 'cyan' },
-      { label: 'Sakit', value: countBy(D.presensi, 'status', 'Sakit'), icon: 'fa-notes-medical', color: 'red' },
-      { label: 'Alpa', value: countBy(D.presensi, 'status', 'Alpa'), icon: 'fa-exclamation-circle', color: 'gray' }
-    ],
-    toolbar: {
-      search: { table: 'tblPresensi', placeholder: 'Cari nama pegawai' },
-      filters: [
-        { table: 'tblPresensi', col: 0, label: 'Filter Status', options: ['Hadir', 'Izin', 'Cuti', 'Dinas Luar', 'Sakit', 'Alpa'] }
-      ],
-      buttons: [
-        { type: 'export', table: 'tblPresensi', label: 'Export Excel', icon: 'fa-file-excel' },
-        { type: 'print', label: 'Cetak Rekap', icon: 'fa-print' }
-      ]
-    },
-    table: {
-      id: 'tblPresensi',
-      columns: [
-        { label: 'Tanggal' },
-        { label: 'NIP' },
-        { label: 'Nama' },
-        { label: 'Jam Masuk' },
-        { label: 'Jam Pulang' },
-        { label: 'Status', format: kepBadge },
-        { label: 'Keterangan' }
-      ],
-      rows,
-      records,
-      actions: [
-        { act: 'detail', icon: 'fa-eye', label: 'Detail' },
-        { act: 'edit', icon: 'fa-edit', label: 'Edit', modal: 'modalPresensi' },
-        { act: 'hapus', icon: 'fa-trash', label: 'Hapus' }
-      ]
-    },
-    modal: {
-      id: 'modalPresensi',
-      title: 'Input Presensi',
-      table: 'tblPresensi',
-      fields: [
-        { name: 'tanggal', label: 'Tanggal', type: 'date', required: true },
-        { name: 'nip', label: 'NIP', required: true },
-        { name: 'nama', label: 'Nama', required: true },
-        { name: 'masuk', label: 'Jam Masuk' },
-        { name: 'pulang', label: 'Jam Pulang' },
-        { name: 'status', label: 'Status Kehadiran', type: 'select', options: ['Hadir', 'Izin', 'Cuti', 'Dinas Luar', 'Sakit', 'Alpa'], required: true },
-        { name: 'ket', label: 'Keterangan', type: 'textarea' }
-      ]
-    }
+    title: 'Arsip Presensi Pegawai',
+    desc: 'Folder presensi tahunan berisi file PDF presensi bulanan per pegawai',
+    tabs
   };
-  return renderModul(res, req, 'kep_table', cfg);
+  return renderModul(res, req, 'kep_tabs', cfg);
 });
 
 router.get('/referensi-data', async (req, res, next) => {
+  const D = await kepdata.getKepData();
   const defs = [
     { key: 'jabatan', label: 'Jabatan', icon: 'fa-briefcase' },
     { key: 'golongan', label: 'Pangkat/Golongan', icon: 'fa-layer-group' },
@@ -557,7 +609,7 @@ router.get('/referensi-data', async (req, res, next) => {
           { label: 'Status', format: kepBadge }
         ],
         rows: data.map((x) => [x.kode, x.nama, x.status]),
-        records: data.map((x) => ({ kode: x.kode, nama: x.nama, status: x.status })),
+        records: data.map((x) => ({ id: x.id, kode: x.kode, nama: x.nama, status: x.status })),
         actions: [
           { act: 'edit', icon: 'fa-edit', label: 'Edit', modal: mid },
           { act: 'hapus', icon: 'fa-trash', label: 'Hapus' }
@@ -568,6 +620,7 @@ router.get('/referensi-data', async (req, res, next) => {
         title: 'Tambah ' + d.label,
         table: tid,
         fields: [
+          { name: 'kategori', type: 'hidden', value: d.key },
           { name: 'kode', label: 'Kode', required: true },
           { name: 'nama', label: 'Nama Referensi', required: true },
           { name: 'status', label: 'Status', type: 'select', options: ['Aktif', 'Nonaktif'] }
@@ -585,8 +638,9 @@ router.get('/referensi-data', async (req, res, next) => {
 });
 
 router.get('/kelola-user', async (req, res, next) => {
+  const D = await kepdata.getKepData();
   const rows = D.users.map((u) => [u.username, u.nama, u.role, u.unit, u.status, u.login]);
-  const records = D.users.map((u) => ({ username: u.username, nama: u.nama, email: u.email, role: u.role, unit: u.unit, status: u.status, password: '' }));
+  const records = D.users.map((u) => ({ id: u.id, username: u.username, nama: u.nama, email: u.email, role: u.role, unit: u.unit, status: u.status, password: '' }));
   const admin = D.users.filter((u) => u.role !== 'Pegawai').length;
   const op = D.users.filter((u) => u.role === 'Operator').length;
   const cfg = {
@@ -649,8 +703,9 @@ router.get('/kelola-user', async (req, res, next) => {
 });
 
 router.get('/inbox-surat', async (req, res, next) => {
+  const D = await kepdata.getKepData();
   const rows = D.surat.map((s) => [s.nomor, s.tanggal, s.perihal, s.pengirim, s.status]);
-  const records = D.surat.map((s) => ({ nomor: s.nomor, tanggal: s.tanggal, perihal: s.perihal, pengirim: s.pengirim, status: s.status }));
+  const records = D.surat.map((s) => ({ id: s.id, nomor: s.nomor, tanggal: s.tanggal, perihal: s.perihal, pengirim: s.pengirim, status: s.status }));
   const cfg = {
     breadcrumb: ['Layanan Kepegawaian', 'Inbox Surat'],
     title: 'Inbox Surat',
@@ -711,6 +766,7 @@ router.get('/inbox-surat', async (req, res, next) => {
 });
 
 router.get('/kartu-pegawai', async (req, res, next) => {
+  const D = await kepdata.getKepData();
   const cfg = {
     breadcrumb: ['Layanan Kepegawaian', 'Kartu Pegawai'],
     title: 'Kartu Pegawai',
@@ -721,6 +777,7 @@ router.get('/kartu-pegawai', async (req, res, next) => {
 });
 
 router.get('/kepangkatan', async (req, res, next) => {
+  const D = await kepdata.getKepData();
   const cols = [
     { label: 'NIP' },
     { label: 'Nama' },
@@ -772,8 +829,9 @@ router.get('/kepangkatan', async (req, res, next) => {
 });
 
 router.get('/gaji-berkala', async (req, res, next) => {
+  const D = await kepdata.getKepData();
   const rows = D.gajiBerkala.map((g) => [g.nip, g.nama, g.pangkat, g.gaji, g.tmtLama, g.tmtBerikut, g.status]);
-  const records = D.gajiBerkala.map((g) => ({ nip: g.nip, nama: g.nama, pangkat: g.pangkat, gaji: g.gaji, tmtLama: g.tmtLama, tmtBerikut: g.tmtBerikut, status: g.status }));
+  const records = D.gajiBerkala.map((g) => ({ id: g.id, nip: g.nip, nama: g.nama, pangkat: g.pangkat, gaji: g.gaji, tmtLama: g.tmtLama, tmtBerikut: g.tmtBerikut, status: g.status }));
   const cfg = {
     breadcrumb: ['Layanan Kepegawaian', 'Gaji Berkala'],
     title: 'Gaji Berkala',
@@ -832,8 +890,9 @@ router.get('/gaji-berkala', async (req, res, next) => {
 });
 
 router.get('/izin-cuti', async (req, res, next) => {
+  const D = await kepdata.getKepData();
   const rows = D.cuti.map((c) => [c.pemohon, c.jenis, c.mulai, c.selesai, c.lama, c.status]);
-  const records = D.cuti.map((c) => ({ pemohon: c.pemohon, jenis: c.jenis, mulai: c.mulai, selesai: c.selesai, lama: c.lama, status: c.status }));
+  const records = D.cuti.map((c) => ({ id: c.id, pemohon: c.pemohon, jenis: c.jenis, mulai: c.mulai, selesai: c.selesai, lama: c.lama, status: c.status }));
   const cfg = {
     breadcrumb: ['Layanan Kepegawaian', 'Izin Cuti'],
     title: 'Izin Cuti',
@@ -892,8 +951,9 @@ router.get('/izin-cuti', async (req, res, next) => {
 });
 
 router.get('/izin-cerai', async (req, res, next) => {
+  const D = await kepdata.getKepData();
   const rows = D.izinCerai.map((x) => [x.pegawai, x.nip, x.tanggal, x.status, x.tahapan]);
-  const records = D.izinCerai.map((x) => ({ pegawai: x.pegawai, nip: x.nip, tanggal: x.tanggal, status: x.status }));
+  const records = D.izinCerai.map((x) => ({ id: x.id, pegawai: x.pegawai, nip: x.nip, tanggal: x.tanggal, status: x.status }));
   const cfg = {
     breadcrumb: ['Layanan Kepegawaian', 'Izin Cerai'],
     title: 'Izin Cerai',
@@ -950,8 +1010,9 @@ router.get('/izin-cerai', async (req, res, next) => {
 });
 
 router.get('/slks', async (req, res, next) => {
+  const D = await kepdata.getKepData();
   const rows = D.slks.map((s) => [s.nip, s.nama, s.masaKerja, s.kategori, s.tahun, s.status]);
-  const records = D.slks.map((s) => ({ nip: s.nip, nama: s.nama, masaKerja: s.masaKerja, kategori: s.kategori, tahun: s.tahun, status: s.status }));
+  const records = D.slks.map((s) => ({ id: s.id, nip: s.nip, nama: s.nama, masaKerja: s.masaKerja, kategori: s.kategori, tahun: s.tahun, status: s.status }));
   const cfg = {
     breadcrumb: ['Layanan Kepegawaian', 'SLKS'],
     title: 'Satya Lencana Karya Satya',
@@ -1012,8 +1073,9 @@ router.get('/slks', async (req, res, next) => {
 });
 
 router.get('/pengadaan-pegawai', async (req, res, next) => {
+  const D = await kepdata.getKepData();
   const rows = D.pengadaan.map((p) => [p.formasi, p.jabatan, p.unit, p.jumlah, p.terisi, p.sisa, p.status]);
-  const records = D.pengadaan.map((p) => ({ formasi: p.formasi, jabatan: p.jabatan, unit: p.unit, jumlah: p.jumlah, terisi: p.terisi, status: p.status }));
+  const records = D.pengadaan.map((p) => ({ id: p.id, formasi: p.formasi, jabatan: p.jabatan, unit: p.unit, jumlah: p.jumlah, terisi: p.terisi, status: p.status }));
   const cfg = {
     breadcrumb: ['Status Kepegawaian', 'Pengadaan Pegawai'],
     title: 'Pengadaan Pegawai',
@@ -1073,8 +1135,9 @@ router.get('/pengadaan-pegawai', async (req, res, next) => {
 });
 
 router.get('/pensiun', async (req, res, next) => {
+  const D = await kepdata.getKepData();
   const rows = D.pensiun.map((p) => [p.nip, p.nama, p.jabatan, p.tglLahir, p.bup, p.perkiraan, p.status]);
-  const records = D.pensiun.map((p) => ({ nip: p.nip, nama: p.nama, jabatan: p.jabatan, tglLahir: p.tglLahir, status: p.status }));
+  const records = D.pensiun.map((p) => ({ id: p.id, nip: p.nip, nama: p.nama, jabatan: p.jabatan, tglLahir: p.tglLahir, status: p.status }));
   const cfg = {
     breadcrumb: ['Status Kepegawaian', 'Pensiun'],
     title: 'Pensiun',
@@ -1121,8 +1184,9 @@ router.get('/pensiun', async (req, res, next) => {
 });
 
 router.get('/pindah-tugas', async (req, res, next) => {
+  const D = await kepdata.getKepData();
   const rows = D.pindahTugas.map((x) => [x.pegawai, x.asal, x.tujuan, x.tanggal, x.status]);
-  const records = D.pindahTugas.map((x) => ({ pegawai: x.pegawai, asal: x.asal, tujuan: x.tujuan, tanggal: x.tanggal, status: x.status }));
+  const records = D.pindahTugas.map((x) => ({ id: x.id, pegawai: x.pegawai, asal: x.asal, tujuan: x.tujuan, tanggal: x.tanggal, status: x.status }));
   const cfg = {
     breadcrumb: ['Status Kepegawaian', 'Pindah Tugas'],
     title: 'Pindah Tugas',
@@ -1178,8 +1242,9 @@ router.get('/pindah-tugas', async (req, res, next) => {
 });
 
 router.get('/penempatan-tugas', async (req, res, next) => {
+  const D = await kepdata.getKepData();
   const rows = D.penempatan.map((x) => [x.pegawai, x.jabatan, x.unit, x.tugas, x.tmt, x.status]);
-  const records = D.penempatan.map((x) => ({ pegawai: x.pegawai, jabatan: x.jabatan, unit: x.unit, tugas: x.tugas, tmt: x.tmt, status: x.status }));
+  const records = D.penempatan.map((x) => ({ id: x.id, pegawai: x.pegawai, jabatan: x.jabatan, unit: x.unit, tugas: x.tugas, tmt: x.tmt, status: x.status }));
   const cfg = {
     breadcrumb: ['Status Kepegawaian', 'Penempatan Tugas'],
     title: 'Penempatan Tugas',
@@ -1236,8 +1301,9 @@ router.get('/penempatan-tugas', async (req, res, next) => {
 });
 
 router.get('/disiplin-pegawai', async (req, res, next) => {
+  const D = await kepdata.getKepData();
   const rows = D.disiplin.map((x) => [x.pegawai, x.pelanggaran, x.tanggal, x.tingkat, x.status]);
-  const records = D.disiplin.map((x) => ({ pegawai: x.pegawai, pelanggaran: x.pelanggaran, tanggal: x.tanggal, tingkat: x.tingkat, status: x.status }));
+  const records = D.disiplin.map((x) => ({ id: x.id, pegawai: x.pegawai, pelanggaran: x.pelanggaran, tanggal: x.tanggal, tingkat: x.tingkat, status: x.status }));
   const inProcess = D.disiplin.filter((x) => ['Pemeriksaan', 'Pembinaan', 'Keputusan'].includes(x.status)).length;
   const cfg = {
     breadcrumb: ['Status Kepegawaian', 'Disiplin Pegawai'],
@@ -1301,8 +1367,9 @@ router.get('/disiplin-pegawai', async (req, res, next) => {
 });
 
 router.get('/diklat-struktural', async (req, res, next) => {
+  const D = await kepdata.getKepData();
   const rows = D.diklatStruktural.map((x) => [x.pegawai, x.diklat, x.penyelenggara, x.tahun, x.durasi, x.status, x.sertifikat]);
-  const records = D.diklatStruktural.map((x) => ({ pegawai: x.pegawai, diklat: x.diklat, penyelenggara: x.penyelenggara, tahun: x.tahun, durasi: x.durasi, status: x.status, sertifikat: x.sertifikat }));
+  const records = D.diklatStruktural.map((x) => ({ id: x.id, pegawai: x.pegawai, diklat: x.diklat, penyelenggara: x.penyelenggara, tahun: x.tahun, durasi: x.durasi, status: x.status, sertifikat: x.sertifikat }));
   const cfg = {
     breadcrumb: ['Pengembangan Pegawai', 'Diklat Struktural'],
     title: 'Diklat Struktural',
@@ -1356,8 +1423,9 @@ router.get('/diklat-struktural', async (req, res, next) => {
 });
 
 router.get('/diklat-teknis', async (req, res, next) => {
+  const D = await kepdata.getKepData();
   const rows = D.diklatTeknis.map((x) => [x.pegawai, x.diklat, x.kategori, x.penyelenggara, x.tahun, x.durasi, x.status, x.sertifikat]);
-  const records = D.diklatTeknis.map((x) => ({ pegawai: x.pegawai, diklat: x.diklat, kategori: x.kategori, penyelenggara: x.penyelenggara, tahun: x.tahun, durasi: x.durasi, status: x.status, sertifikat: x.sertifikat }));
+  const records = D.diklatTeknis.map((x) => ({ id: x.id, pegawai: x.pegawai, diklat: x.diklat, kategori: x.kategori, penyelenggara: x.penyelenggara, tahun: x.tahun, durasi: x.durasi, status: x.status, sertifikat: x.sertifikat }));
   const cfg = {
     breadcrumb: ['Pengembangan Pegawai', 'Diklat Teknis'],
     title: 'Diklat Teknis',
@@ -1414,8 +1482,9 @@ router.get('/diklat-teknis', async (req, res, next) => {
 });
 
 router.get('/izin-belajar', async (req, res, next) => {
+  const D = await kepdata.getKepData();
   const rows = D.izinBelajar.map((x) => [x.pegawai, x.pendidikan, x.prodi, x.pt, x.tahun, x.status]);
-  const records = D.izinBelajar.map((x) => ({ pegawai: x.pegawai, pendidikan: x.pendidikan, prodi: x.prodi, pt: x.pt, tahun: x.tahun, status: x.status }));
+  const records = D.izinBelajar.map((x) => ({ id: x.id, pegawai: x.pegawai, pendidikan: x.pendidikan, prodi: x.prodi, pt: x.pt, tahun: x.tahun, status: x.status }));
   const cfg = {
     breadcrumb: ['Pengembangan Pegawai', 'Izin Belajar'],
     title: 'Izin Belajar',
@@ -1473,8 +1542,9 @@ router.get('/izin-belajar', async (req, res, next) => {
 });
 
 router.get('/tugas-belajar', async (req, res, next) => {
+  const D = await kepdata.getKepData();
   const rows = D.tugasBelajar.map((x) => [x.pegawai, x.jenjang, x.prodi, x.pt, x.biaya, x.status]);
-  const records = D.tugasBelajar.map((x) => ({ pegawai: x.pegawai, jenjang: x.jenjang, prodi: x.prodi, pt: x.pt, biaya: x.biaya, status: x.status }));
+  const records = D.tugasBelajar.map((x) => ({ id: x.id, pegawai: x.pegawai, jenjang: x.jenjang, prodi: x.prodi, pt: x.pt, biaya: x.biaya, status: x.status }));
   const cfg = {
     breadcrumb: ['Pengembangan Pegawai', 'Tugas Belajar'],
     title: 'Tugas Belajar',

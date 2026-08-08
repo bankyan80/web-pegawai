@@ -1,29 +1,25 @@
-const pool = require('../config/db');
+const sb = require('../config/supabase');
 
 class Jabatan {
   async dataJabatan() {
-    const [rows] = await pool.query('select * from jabatan');
-    return rows;
+    return sb.select('jabatan');
   }
 
   async input(data) {
-    const sql = 'INSERT INTO jabatan (nama) values (?)';
-    await pool.query(sql, data);
+    await sb.insert('jabatan', { nama: data[0] });
   }
 
   async getJabatan(id) {
-    const [rows] = await pool.query('select * from jabatan where id=?', [id]);
+    const rows = await sb.select('jabatan', { eq: { col: 'id', val: id } });
     return rows[0];
   }
 
   async ubah(data) {
-    const sql = 'update jabatan set nama=? where id=?';
-    await pool.query(sql, data);
+    await sb.update('jabatan', data[1], { nama: data[0] });
   }
 
   async hapus(id) {
-    const sql = 'delete from jabatan where id=?';
-    await pool.query(sql, [id]);
+    await sb.remove('jabatan', id);
   }
 }
 
