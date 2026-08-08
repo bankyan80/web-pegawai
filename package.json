@@ -2,7 +2,7 @@
   "name": "web-pegawai",
   "version": "1.0.0",
   "private": true,
-  "description": "Sistem Kepegawaian - Tech Muda 4 (Express on Vercel)",
+  "description": "Timker Kepegawaian - Tim Kerja Bidang Pendidikan Sekolah Dasar Kecamatan Lemahabang (Express on Vercel)",
   "main": "api/index.js",
   "scripts": {
     "start": "node nodejs/app.js",

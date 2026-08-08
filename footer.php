@@ -2,7 +2,7 @@
 	<div class="col-md-12">
 		<div class="alert alert-dismissible alert-secondary">
 			<h4 align="center">
-				Tech Muda Batch 4
+				Tim Kerja Bidang Pendidikan Sekolah Dasar Kecamatan Lemahabang
 			</h4> <strong>
 				<center>Design by salnuraqidah @2020 NF Computer</center>
 			</strong>

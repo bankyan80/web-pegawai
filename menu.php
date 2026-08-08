@@ -4,7 +4,7 @@
 
 			<button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
 				<span class="navbar-toggler-icon"></span>
-			</button> <a class="navbar-brand" href="#">Tech Muda 4</a>
+			</button> <a class="navbar-brand" href="#">Timker Kepegawaian</a>
 			<div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
 				<ul class="navbar-nav">
 					<li class="nav-item active">
