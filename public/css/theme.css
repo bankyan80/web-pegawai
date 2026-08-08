@@ -363,14 +363,6 @@ body {
   flex: 1 0 auto;
 }
 
-.main-wrapper > .row {
-  height: 100%;
-}
-
-.main-wrapper .row {
-  align-items: stretch;
-}
-
 .tm-footer-mini {
   flex-shrink: 0;
 }
@@ -380,10 +372,6 @@ body {
   padding-right: 15px;
   display: flex;
   flex-direction: column;
-}
-
-.page-card {
-  flex: 1 1 auto;
 }
 
 .sidebar-col {
