@@ -62,6 +62,15 @@
 				</div>
 			</div>
 
+			<% if (!member) { %>
+				<div class="kep-menu-item kep-menu-login">
+					<a class="kep-menu-btn kep-login-btn" href="/?hal=form_login">
+						<i class="fas fa-sign-in-alt"></i>
+						<span>Login</span>
+					</a>
+				</div>
+			<% } %>
+
 		</div>
 	</div>
 </nav>
@@ -71,7 +80,7 @@
 	var nav = document.querySelector('.kep-nav');
 	if (!nav) return;
 	var items = nav.querySelectorAll('.kep-menu-item');
-	var btns = nav.querySelectorAll('.kep-menu-btn');
+	var btns = nav.querySelectorAll('.kep-menu-btn[aria-haspopup]');
 
 	function closeAll(except) {
 		items.forEach(function (item) {

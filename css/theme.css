@@ -222,6 +222,18 @@ a:hover {
   color: var(--tm-primary);
 }
 
+.kep-login-btn {
+  background: var(--tm-primary);
+  border-color: var(--tm-primary);
+  color: #fff;
+}
+
+.kep-login-btn:hover {
+  background: #4338ca;
+  border-color: #4338ca;
+  color: #fff;
+}
+
 .kep-caret {
   font-size: 11px;
   color: #94a3b8;
