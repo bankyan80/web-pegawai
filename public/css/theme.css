@@ -69,6 +69,15 @@ a:hover {
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
 }
 
+.tm-navbar .navbar-brand .tm-brand-logo {
+  height: 42px;
+  width: auto;
+  margin-right: 0.6rem;
+  background: none;
+  border: none;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15));
+}
+
 .tm-navbar .nav-link {
   color: rgba(255, 255, 255, 0.92) !important;
   font-weight: 500;

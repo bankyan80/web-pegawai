@@ -13,7 +13,7 @@
 
 	<link href="public/css/bootstrap.min.css" rel="stylesheet">
 	<link href="public/fontawesome/css/all.css" rel="stylesheet">
-	<link href="public/images/statistics.png" rel="icon" />
+	<link href="public/images/logokab.png" rel="icon" />
 
 </head>
 
