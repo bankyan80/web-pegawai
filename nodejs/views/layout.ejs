@@ -15,6 +15,13 @@
 	<link href="/fontawesome/css/all.css" rel="stylesheet">
 	<link href="/css/theme.css" rel="stylesheet">
 	<link href="/images/logokab.png" rel="icon" />
+	<link href="/manifest.webmanifest" rel="manifest" />
+	<meta name="theme-color" content="#4338ca">
+	<meta name="mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-status-bar-style" content="default">
+	<meta name="apple-mobile-web-app-title" content="Timker">
+	<link href="/icons/icon-192.png" rel="apple-touch-icon">
 
 </head>
 
@@ -79,6 +86,15 @@
 	<script src="/js/popper.min.js"></script>
 	<script src="/js/bootstrap.min.js"></script>
 	<script src="/js/kep.js"></script>
+	<script>
+		if ('serviceWorker' in navigator) {
+			window.addEventListener('load', function () {
+				navigator.serviceWorker.register('/sw.js').catch(function (e) {
+					console.error('SW registration failed:', e);
+				});
+			});
+		}
+	</script>
 </body>
 
 </html>

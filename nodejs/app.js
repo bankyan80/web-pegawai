@@ -47,6 +47,9 @@ app.use('/css', express.static(path.join(publicRoot, 'css')));
 app.use('/js', express.static(path.join(publicRoot, 'js')));
 app.use('/images', express.static(path.join(publicRoot, 'images')));
 app.use('/fontawesome', express.static(path.join(publicRoot, 'fontawesome')));
+app.use('/icons', express.static(path.join(publicRoot, 'icons')));
+app.use('/manifest.webmanifest', express.static(path.join(publicRoot, 'manifest.webmanifest'), { setHeaders: (res) => res.setHeader('Content-Type', 'application/manifest+json') }));
+app.use('/sw.js', express.static(path.join(publicRoot, 'sw.js')));
 
 app.use('/', pages);
 app.use('/controller', controllers);
