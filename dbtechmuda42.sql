@@ -90,11 +90,11 @@ INSERT INTO divisi (nama) VALUES
 INSERT INTO jabatan (nama) VALUES
 ('Manager'), ('Supervisor'), ('Staff');
 
--- password 'admin123' & 'staff123' disimpan SHA1; saat login pertama otomatis
--- di-upgrade menjadi hash bcrypt oleh aplikasi.
+-- password default: admin / Admin@Kepegawaian2026!  ;  staff / Staff@Kepegawaian2026!
+-- disimpan sebagai hash bcrypt (cost 10). Ganti password segera setelah login pertama.
 INSERT INTO member (fullname, username, passwors, role, email) VALUES
-('Administrator', 'admin', SHA1('admin123'), 'administrator', 'admin@example.com'),
-('Staff Umum',     'staff', SHA1('staff123'), 'staff',         'staff@example.com');
+('Administrator', 'admin', '$2a$10$.fwMF80gegS4m.P79l/HoOz/mpO6uzME8tBfqYWQuxTt16FMno8lW', 'administrator', 'admin@example.com'),
+('Staff Umum',     'staff', '$2a$10$8IVL373IPO/AY6LhHbIFrOw4E8zsm5s5jTdRQZNyAz/ehteA5KP9q', 'staff',         'staff@example.com');
 
 INSERT INTO pegawai (nip, nama, gender, tempat_lahir, tanggal_lahir, idjabatan, iddivisi, alamat, email, foto) VALUES
 ('P001', 'Budi Santoso', 'L', 'Jakarta', '1990-05-12', 3, 1, 'Jl. Merdeka No.1, Jakarta', 'budi@example.com', ''),

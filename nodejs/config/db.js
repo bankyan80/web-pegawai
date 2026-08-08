@@ -1,5 +1,4 @@
 const { DatabaseSync } = require('node:sqlite');
-const crypto = require('crypto');
 const path = require('path');
 require('dotenv').config();
 
@@ -81,7 +80,6 @@ CREATE INDEX IF NOT EXISTS idx_login_attempt_user_ip ON login_attempt (username,
 db.exec(schema);
 
 function seed() {
-  const sha1 = (v) => crypto.createHash('sha1').update(v).digest('hex');
   const count = (t) => db.prepare('SELECT COUNT(*) c FROM ' + t).get().c;
 
   if (count('divisi') === 0) {
@@ -96,8 +94,10 @@ function seed() {
     const st = db.prepare(
       'INSERT INTO member (fullname, username, passwors, role, email) VALUES (?,?,?,?,?)'
     );
-    st.run('Administrator', 'admin', sha1('admin123'), 'administrator', 'admin@example.com');
-    st.run('Staff Umum', 'staff', sha1('staff123'), 'staff', 'staff@example.com');
+    const adminHash = '$2a$10$.fwMF80gegS4m.P79l/HoOz/mpO6uzME8tBfqYWQuxTt16FMno8lW';
+    const staffHash = '$2a$10$8IVL373IPO/AY6LhHbIFrOw4E8zsm5s5jTdRQZNyAz/ehteA5KP9q';
+    st.run('Administrator', 'admin', adminHash, 'administrator', 'admin@example.com');
+    st.run('Staff Umum', 'staff', staffHash, 'staff', 'staff@example.com');
   }
   if (count('pegawai') === 0) {
     const st = db.prepare(

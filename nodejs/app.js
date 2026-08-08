@@ -53,7 +53,8 @@ app.use('/controller', controllers);
 
 app.use((err, req, res, next) => {
   console.error(err);
-  if (process.env.APP_DEBUG === '1') {
+  const debug = process.env.APP_DEBUG === '1' && process.env.NODE_ENV !== 'production';
+  if (debug) {
     res.status(500).send(err.message);
   } else {
     res.status(500).send('Terjadi kesalahan server.');

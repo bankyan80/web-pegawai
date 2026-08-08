@@ -324,13 +324,37 @@ function requireLogin(req, res, next) {
   return next();
 }
 
+function requireStaff(req, res, next) {
+  if (!req.session.MEMBER) {
+    return res.redirect('/?hal=form_login');
+  }
+  if (req.session.MEMBER.role === 'staff') {
+    return res.redirect('/?hal=home');
+  }
+  return next();
+}
+
+function requireAdmin(req, res, next) {
+  if (!req.session.MEMBER) {
+    return res.redirect('/?hal=form_login');
+  }
+  if (req.session.MEMBER.role !== 'administrator') {
+    return res.redirect('/?hal=home');
+  }
+  return next();
+}
+
+// Modul yang bisa diakses semua role yang sudah login
 router.use([
   '/profil-pegawai',
   '/presensi',
-  '/referensi-data',
-  '/kelola-user',
   '/inbox-surat',
-  '/kartu-pegawai',
+  '/kartu-pegawai'
+], requireLogin);
+
+// Modul pengelolaan data (role staff tidak boleh)
+router.use([
+  '/referensi-data',
   '/kepangkatan',
   '/gaji-berkala',
   '/izin-cuti',
@@ -345,7 +369,10 @@ router.use([
   '/diklat-teknis',
   '/izin-belajar',
   '/tugas-belajar'
-], requireLogin);
+], requireStaff);
+
+// Modul khusus administrator
+router.use(['/kelola-user'], requireAdmin);
 
 router.get('/profil-pegawai', async (req, res, next) => {
   const rows = D.pegawai.map((p) => [p.nip, p.nama, p.jenis, p.jabatan, p.unit, p.status]);
