@@ -25,18 +25,24 @@
 
 	<div class="container-fluid main-wrapper">
 		<div class="row">
-			<div class="col-lg-9 content-col order-1 order-lg-2">
-				<div class="page-card">
-					<%- body %>
+			<% if (member) { %>
+				<div class="col-lg-9 content-col order-1 order-lg-2">
+					<div class="page-card">
+						<%- body %>
+					</div>
 				</div>
-			</div>
-			<div class="col-lg-3 sidebar-col order-2 order-lg-1">
-				<%- include('partials/sidebar') %>
-			</div>
+				<div class="col-lg-3 sidebar-col order-2 order-lg-1">
+					<%- include('partials/sidebar') %>
+				</div>
+			<% } else { %>
+				<div class="col-12 content-col">
+					<div class="page-card">
+						<%- body %>
+					</div>
+				</div>
+			<% } %>
 		</div>
 	</div>
-
-	<%- include('partials/footer') %>
 
 	<% if (!member) { %>
 	<div class="modal fade" id="tmLoginModal" tabindex="-1" role="dialog" aria-labelledby="tmLoginModalLabel" aria-hidden="true">
