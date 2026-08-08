@@ -663,6 +663,21 @@ a:hover {
   color: var(--tm-primary-dark);
 }
 
+.tm-hero .btn-hero-outline {
+  background: transparent;
+  color: #fff;
+  font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  position: relative;
+  z-index: 1;
+}
+
+.tm-hero .btn-hero-outline:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  border-color: #fff;
+}
+
 /* ============ STAT CARDS (home) ============ */
 .tm-stat {
   border: none;

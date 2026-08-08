@@ -1,16 +1,10 @@
-<div class="tm-hero">
-	<h2>Welcome to Tech Muda 4 App</h2>
-	<p>
-		Tech Muda is an IT company which provides skillful talents as IT service for our customers. Founded in 2020, we are committed to develop and upgrade human resources with specific skills and knowledge, from potential to become excellent people who is ready to compete in the IT industry to help you meet your IT business objectives.
-	</p>
-	<p class="mb-0">
-		<a class="btn btn-hero btn-lg" href="/?hal=aboutus">
-			Read More <i class="fas fa-caret-right ml-1"></i>
-		</a>
-	</p>
-</div>
-
 <% if (member) { %>
+	<div class="tm-hero">
+		<h2>Selamat Datang, <%= member.fullname %>!</h2>
+		<p>
+			Anda masuk sebagai <strong><%= member.role %></strong>. Gunakan menu kepegawaian di atas untuk mengelola data pegawai, presensi, kepangkatan, cuti, dan layanan kepegawaian lainnya.
+		</p>
+	</div>
 	<div class="row mt-4">
 		<div class="col-md-4 mb-3">
 			<div class="tm-stat">
@@ -36,5 +30,23 @@
 				<a href="/?hal=jabatan" class="small">Kelola Jabatan <i class="fas fa-arrow-right"></i></a>
 			</div>
 		</div>
+	</div>
+<% } else { %>
+	<div class="tm-hero">
+		<h2>Selamat Datang di Sistem Kepegawaian</h2>
+		<p>
+			Selamat datang di Sistem Informasi Kepegawaian Tech Muda 4. Aplikasi ini digunakan untuk mengelola data kepegawaian meliputi profil pegawai, presensi, kepangkatan, gaji berkala, izin & cuti, diklat, serta layanan kepegawaian lainnya.
+		</p>
+		<p>
+			Silakan login menggunakan akun Anda untuk mengakses seluruh menu dan layanan kepegawaian.
+		</p>
+		<p class="mb-0">
+			<a class="btn btn-hero btn-lg" href="/?hal=form_login">
+				<i class="fas fa-sign-in-alt mr-1"></i> Login
+			</a>
+			<a class="btn btn-hero-outline btn-lg ml-2" href="/?hal=aboutus">
+				Tentang Kami <i class="fas fa-caret-right ml-1"></i>
+			</a>
+		</p>
 	</div>
 <% } %>
