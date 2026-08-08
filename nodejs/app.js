@@ -7,6 +7,7 @@ const path = require('path');
 const pages = require('./routes/pages');
 const controllers = require('./routes/controllers');
 const apiKep = require('./routes/api-kep');
+const menuModel = require('./models/menu');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -51,6 +52,18 @@ app.use('/fontawesome', express.static(path.join(publicRoot, 'fontawesome')));
 app.use('/icons', express.static(path.join(publicRoot, 'icons')));
 app.use('/manifest.webmanifest', express.static(path.join(publicRoot, 'manifest.webmanifest'), { setHeaders: (res) => res.setHeader('Content-Type', 'application/manifest+json') }));
 app.use('/sw.js', express.static(path.join(publicRoot, 'sw.js')));
+
+// Muat menu navbar dari DB (di-cache) dan saring sesuai role member.
+app.use(async (req, res, next) => {
+  try {
+    const rows = await menuModel.all();
+    res.locals.menus = menuModel.forRole(rows, req.session.MEMBER);
+  } catch (err) {
+    console.error('MENU:', err.message);
+    res.locals.menus = [];
+  }
+  next();
+});
 
 app.use('/', pages);
 app.use('/controller', controllers);

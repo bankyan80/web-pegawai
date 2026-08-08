@@ -57,14 +57,15 @@
 				<div class="modal-body">
 					<form method="POST" action="/controller/login">
 						<input type="hidden" name="csrf_token" value="<%= csrf %>">
-						<div class="form-group">
-							<label>Username</label>
-							<input type="text" class="form-control" name="username">
-						</div>
-						<div class="form-group">
-							<label>Password</label>
-							<input type="password" class="form-control" name="password">
-						</div>
+					<div class="form-group">
+						<label>Username / NIP / NIK</label>
+						<input type="text" class="form-control" name="username" placeholder="NIP/NIK atau username">
+					</div>
+					<div class="form-group">
+						<label>Password</label>
+						<input type="password" class="form-control" name="password">
+						<small class="form-text text-muted">Pegawai: password = 6 digit terakhir NIP/NIK Anda.</small>
+					</div>
 						<button type="submit" class="btn btn-primary btn-block"><i class="fas fa-sign-in-alt mr-1"></i> Login</button>
 					</form>
 				</div>

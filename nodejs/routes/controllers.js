@@ -33,7 +33,8 @@ router.post('/login', async (req, res) => {
         username: rs.username,
         role: rs.role,
         email: rs.email,
-        foto: rs.foto
+        foto: rs.foto,
+        unit: rs.unit
       };
       res.redirect('/?hal=home');
     } else {

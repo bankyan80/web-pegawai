@@ -6,19 +6,42 @@ class Login {
   async otentikasi(username, password) {
     const rows = await sb.select('member', { filters: ['username=eq.' + encodeURIComponent(username)] });
     const rs = rows[0];
-    if (!rs) {
+    if (rs) {
+      const sha1Hash = crypto.createHash('sha1').update(password).digest('hex');
+      const bcryptMatch = rs.passwors.startsWith('$2') && bcryptCompare(password, rs.passwors);
+      if (bcryptMatch) {
+        return rs;
+      }
+      if (sha1Hash === rs.passwors) {
+        await this.gantiPassword(rs.id, password);
+        return rs;
+      }
       return null;
     }
-    const sha1Hash = crypto.createHash('sha1').update(password).digest('hex');
-    const bcryptMatch = rs.passwors.startsWith('$2') && bcryptCompare(password, rs.passwors);
-    if (bcryptMatch) {
-      return rs;
-    }
-    if (sha1Hash === rs.passwors) {
-      await this.gantiPassword(rs.id, password);
-      return rs;
-    }
-    return null;
+    return this.otentikasiPegawai(username, password);
+  }
+
+  // Login pegawai: username = NIP atau NIK, password = 6 digit terakhir NIP/NIK.
+  async otentikasiPegawai(username, password) {
+    const u = String(username || '').trim();
+    if (!/^[0-9]{6,}$/.test(u)) return null;
+    const rows = await sb.select('pegawai', {
+      filters: ['or=(nip.eq.' + u + ',nik.eq.' + u + ')']
+    });
+    const p = rows[0];
+    if (!p) return null;
+    const expected = u === String(p.nip) ? String(p.nip).slice(-6) : String(p.nik).slice(-6);
+    if (!expected || password !== expected) return null;
+    return {
+      id: p.id,
+      fullname: p.nama,
+      username: String(p.nip || u),
+      role: 'staff',
+      email: p.email || '',
+      foto: p.foto || '',
+      unit: p.sekolah || p.unit || '',
+      loginAs: 'pegawai'
+    };
   }
 
   async gantiPassword(id, password) {

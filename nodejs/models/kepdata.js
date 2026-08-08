@@ -1,5 +1,7 @@
 // Loader data modul kepegawaian dari Supabase.
 // Menghasilkan objek data yang dibaca routes/pages.js.
+// Menggunakan cache per-tabel dengan lazy load: hanya tabel yang
+// diminta (via argumen getKepData) yang diambil dari Supabase.
 const supabase = require('../config/supabase');
 
 const TABLES = [
@@ -20,12 +22,12 @@ const TABLES = [
   'diklat_teknis',
   'izin_belajar',
   'tugas_belajar',
+  'periode_pppk',
+  'riwayat_periode_pppk',
   'users'
 ];
 
-let cache = null;
-let cacheTime = 0;
-const CACHE_TTL = 5000;
+const CACHE_TTL = 60000;
 
 // Pemetaan nama tabel (snake_case) -> key yang dipakai views (camelCase).
 const TABLE_KEYS = {
@@ -35,15 +37,51 @@ const TABLE_KEYS = {
   diklat_struktural: 'diklatStruktural',
   diklat_teknis: 'diklatTeknis',
   izin_belajar: 'izinBelajar',
-  tugas_belajar: 'tugasBelajar'
+  tugas_belajar: 'tugasBelajar',
+  periode_pppk: 'periodePppk',
+  riwayat_periode_pppk: 'riwayatPppk'
 };
+
+// Reverse: key views -> nama tabel.
+const VIEW_TO_TABLE = {};
+Object.keys(TABLE_KEYS).forEach((t) => {
+  VIEW_TO_TABLE[TABLE_KEYS[t]] = t;
+});
 
 // Key snake_case -> nama properti yang dipakai views (camelCase).
 const RENAME = {
   gaji_berkala: { tmt_lama: 'tmtLama', tmt_berikut: 'tmtBerikut' },
   slks: { masa_kerja: 'masaKerja' },
-  pensiun: { tgl_lahir: 'tglLahir' }
+  pensiun: { tgl_lahir: 'tglLahir' },
+  periode_pppk: {
+    pegawai_id: 'pegawaiId',
+    nomor_perjanjian: 'nomorPerjanjian',
+    tanggal_perjanjian: 'tanggalPerjanjian',
+    tanggal_mulai: 'tanggalMulai',
+    tanggal_berakhir: 'tanggalBerakhir',
+    periode_ke: 'periodeKe',
+    created_at: 'createdAt',
+    updated_at: 'updatedAt',
+    created_by: 'createdBy',
+    updated_by: 'updatedBy'
+  },
+  riwayat_periode_pppk: {
+    periode_id: 'periodeId',
+    pegawai_id: 'pegawaiId',
+    periode_ke: 'periodeKe',
+    nomor_perjanjian: 'nomorPerjanjian',
+    tanggal_perjanjian: 'tanggalPerjanjian',
+    tanggal_mulai: 'tanggalMulai',
+    tanggal_berakhir: 'tanggalBerakhir',
+    created_at: 'createdAt',
+    updated_at: 'updatedAt'
+  }
 };
+
+// Key turunan (bukan tabel).
+const LIST_KEYS = ['unitKerja', 'jabatanList', 'pangkatList', 'golonganList', 'jenisPegawaiList', 'jenisCuti'];
+
+const cache = {};
 
 function toView(table, row) {
   const map = RENAME[table] || {};
@@ -54,65 +92,32 @@ function toView(table, row) {
   return out;
 }
 
-async function loadAll() {
-  const results = {};
-  await Promise.all(
-    TABLES.map(async (t) => {
-      try {
-        results[t] = (await supabase.select(t, { order: 'id.asc' })).map((r) => toView(t, r));
-      } catch (err) {
-        console.error('KEPDATA load ' + t + ':', err.message);
-        results[t] = [];
-      }
-    })
-  );
-  return results;
-}
-
-async function getKepData() {
-  const now = Date.now();
-  if (!cache || now - cacheTime > CACHE_TTL) {
-    const data = await loadAll();
-    const ref = await loadReferensi();
-    const lists = listsFromRef(ref);
-    const out = {};
-    TABLES.forEach((t) => {
-      out[TABLE_KEYS[t] || t] = data[t];
-    });
-    cache = {
-      ...out,
-      // List referensi dari Supabase
-      referensi: ref,
-      // Detail pegawai dibangun dari baris pegawai
-      detailPegawai: detailPegawai,
-      // Kartu pegawai (10 pertama)
-      kartuPegawai: data.pegawai.slice(0, 10).map((p) => ({ ...p, qr: 'KRP-' + String(p.nip).slice(-6) })),
-      // List pilihan form dari tabel referensi
-      unitKerja: lists.unitKerja,
-      jabatanList: lists.jabatanList,
-      pangkatList: lists.pangkatList,
-      golonganList: lists.golonganList,
-      jenisPegawaiList: lists.jenisPegawaiList,
-      jenisCuti: lists.jenisCuti
-    };
-    cacheTime = now;
+async function loadTable(name) {
+  const key = 'table:' + name;
+  const hit = cache[key];
+  if (hit && Date.now() - hit.ts <= CACHE_TTL) return hit.data;
+  let data = [];
+  try {
+    data = (await supabase.select(name, { order: 'id.asc' })).map((r) => toView(name, r));
+  } catch (err) {
+    console.error('KEPDATA load ' + name + ':', err.message);
   }
-  return cache;
+  cache[key] = { data, ts: Date.now() };
+  return data;
 }
 
 async function loadReferensi() {
-  try {
-    const rows = await supabase.select('referensi', { order: 'kode.asc' });
-    const ref = {};
-    rows.forEach((r) => {
-      if (!ref[r.kategori]) ref[r.kategori] = [];
-      ref[r.kategori].push({ id: r.id, kode: r.kode, nama: r.nama, status: r.status });
-    });
-    return ref;
-  } catch (err) {
-    console.error('KEPDATA referensi:', err.message);
-    return {};
-  }
+  const key = 'referensi';
+  const hit = cache[key];
+  if (hit && Date.now() - hit.ts <= CACHE_TTL) return hit.data;
+  const rows = await loadTable('referensi');
+  const ref = {};
+  rows.forEach((r) => {
+    if (!ref[r.kategori]) ref[r.kategori] = [];
+    ref[r.kategori].push({ id: r.id, kode: r.kode, nama: r.nama, status: r.status });
+  });
+  cache[key] = { data: ref, ts: Date.now() };
+  return ref;
 }
 
 // List statis pilihan form dibangun dari tabel referensi.
@@ -129,9 +134,14 @@ function listsFromRef(ref) {
   };
 }
 
-function detailPegawai(id) {
-  if (!cache || !cache.pegawai) return null;
-  const p = cache.pegawai.find((x) => Number(x.id) === Number(id)) || cache.pegawai[0];
+function tableFor(key) {
+  if (TABLES.indexOf(key) !== -1) return key;
+  return VIEW_TO_TABLE[key] || null;
+}
+
+function detailPegawai(id, pegawaiRows) {
+  const rows = pegawaiRows || [];
+  const p = rows.find((x) => Number(x.id) === Number(id)) || rows[0];
   if (!p) return null;
   const nama = String(p.nama || '');
   const unit = String(p.unit || '');
@@ -161,10 +171,52 @@ function detailPegawai(id) {
   };
 }
 
-// Set cache langsung (mis. setelah CRUD) agar refresh berikutnya akurat.
-function invalidateCache() {
-  cache = null;
-  cacheTime = 0;
+// getKepData(keys): keys = daftar key yang dibutuhkan halaman
+// (nama tabel, key views, atau key turunan). Tanpa argumen -> load semua.
+async function getKepData(keys) {
+  const need = keys && keys.length ? keys : TABLES.slice();
+  const want = new Set(need);
+  const wantsRef = want.has('referensi') || LIST_KEYS.some((k) => want.has(k));
+  const wantsPegawai = want.has('pegawai') || want.has('detailPegawai') || want.has('kartuPegawai');
+
+  const out = {};
+
+  const tables = new Set();
+  need.forEach((k) => {
+    const t = tableFor(k);
+    if (t) tables.add(t);
+  });
+  if (wantsPegawai) tables.add('pegawai');
+
+  await Promise.all([...tables].map(async (t) => {
+    const rows = await loadTable(t);
+    const vk = TABLE_KEYS[t] || t;
+    if (want.has(vk) || want.has(t)) out[vk] = rows;
+    if (t === 'pegawai') {
+      if (want.has('kartuPegawai')) {
+        out.kartuPegawai = rows.slice(0, 10).map((p) => ({ ...p, qr: 'KRP-' + String(p.nip).slice(-6) }));
+      }
+      if (want.has('detailPegawai')) {
+        out.detailPegawai = (id) => detailPegawai(id, rows);
+      }
+    }
+  }));
+
+  if (wantsRef) {
+    const ref = await loadReferensi();
+    if (want.has('referensi')) out.referensi = ref;
+    const lists = listsFromRef(ref);
+    LIST_KEYS.forEach((k) => {
+      if (want.has(k)) out[k] = lists[k];
+    });
+  }
+
+  return out;
 }
 
-module.exports = { getKepData, invalidateCache, detailPegawai };
+// Hapus semua cache (dipanggil setelah CRUD agar refresh berikutnya akurat).
+function invalidateCache() {
+  Object.keys(cache).forEach((k) => delete cache[k]);
+}
+
+module.exports = { getKepData, invalidateCache };

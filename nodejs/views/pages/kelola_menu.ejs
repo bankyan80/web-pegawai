@@ -1,0 +1,96 @@
+<%- include('../partials/kep_header') %>
+
+<div class="menu-info-bar">
+	<i class="fas fa-info-circle"></i>
+	Menu di bawah ini dirender otomatis di navbar berdasarkan <strong>hak akses per peran</strong>.
+	Grup hanya tampil bila minimal satu item di dalamnya bisa dilihat role tersebut.
+</div>
+
+<div class="kep-table-wrap">
+	<table class="tm-table kelola-menu-table">
+		<thead>
+			<tr>
+				<th>Menu</th>
+				<th>Tautan / Ikon</th>
+				<th>Akses (peran)</th>
+				<th>Publik</th>
+				<th>Status</th>
+				<th>Urutan</th>
+				<th class="kep-th-act">Aksi</th>
+			</tr>
+		</thead>
+		<tbody id="menuBody"></tbody>
+	</table>
+</div>
+
+<div class="modal fade" id="modalMenu" tabindex="-1" role="dialog" aria-hidden="true">
+	<div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+		<div class="modal-content kep-modal">
+			<div class="modal-header">
+				<h5 class="modal-title"><i class="fas fa-pen-square"></i> <span class="menu-modal-title">Tambah Menu</span></h5>
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+			</div>
+			<form class="menu-form" novalidate>
+				<div class="modal-body">
+					<div class="row">
+						<div class="col-md-6 form-group">
+							<label for="menu_label">Label <span class="text-danger">*</span></label>
+							<input type="text" class="form-control" name="label" id="menu_label" required />
+						</div>
+						<div class="col-md-6 form-group">
+							<label for="menu_icon">Ikon FontAwesome</label>
+							<input type="text" class="form-control" name="icon" id="menu_icon" placeholder="fa-folder-open" />
+							<small class="form-text text-muted">Contoh: fa-user, fa-database, fa-home</small>
+						</div>
+						<div class="col-md-6 form-group">
+							<label for="menu_url">Tautan (URL)</label>
+							<input type="text" class="form-control" name="url" id="menu_url" placeholder="/profil-pegawai" />
+							<small class="form-text text-muted">Kosongkan untuk menu grup (dropdown).</small>
+						</div>
+						<div class="col-md-6 form-group">
+							<label for="menu_parent">Induk Menu</label>
+							<select class="form-control" name="parent_id" id="menu_parent">
+								<option value="">-- Menu Utama (tanpa induk) --</option>
+							</select>
+						</div>
+						<div class="col-md-6 form-group">
+							<label for="menu_urutan">Urutan</label>
+							<input type="number" class="form-control" name="urutan" id="menu_urutan" value="0" min="0" />
+						</div>
+						<div class="col-12 form-group">
+							<label class="d-block">Hak Akses (peran yang bisa melihat menu ini)</label>
+							<div class="d-flex flex-wrap gap-2">
+								<label class="menu-check"><input type="checkbox" name="for_administrator" value="1" checked /> Administrator</label>
+								<label class="menu-check"><input type="checkbox" name="for_manager" value="1" checked /> Manager</label>
+								<label class="menu-check"><input type="checkbox" name="for_staff" value="1" checked /> Staff</label>
+							</div>
+						</div>
+						<div class="col-md-6 form-group">
+							<label class="d-block">Tampil Publik (tanpa login)</label>
+							<label class="menu-check"><input type="checkbox" name="publik" value="1" /> Publik (Home / Tentang Kami)</label>
+						</div>
+						<div class="col-md-6 form-group">
+							<label for="menu_status">Status</label>
+							<select class="form-control" name="status" id="menu_status">
+								<option value="Aktif">Aktif</option>
+								<option value="Nonaktif">Nonaktif</option>
+							</select>
+						</div>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-outline-secondary btn-kep-sm" data-dismiss="modal">Batal</button>
+					<button type="submit" class="btn btn-primary btn-kep-sm"><i class="fas fa-save"></i> Simpan</button>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+
+<script>
+	window.MENU_CFG = {
+		rows: <%- JSON.stringify(menuRows || []).replace(/</g, '\\u003c') %>,
+		roles: ['administrator', 'manager', 'staff']
+	};
+</script>
+<script src="/js/menu-admin.js"></script>
