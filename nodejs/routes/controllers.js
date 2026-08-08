@@ -35,7 +35,7 @@ router.post('/login', async (req, res) => {
         email: rs.email,
         foto: rs.foto
       };
-      res.redirect('/?hal=pegawai');
+      res.redirect('/?hal=home');
     } else {
       await model.catatPercobaan(username, ip);
       res.redirect('/?hal=form_login&error=1');
