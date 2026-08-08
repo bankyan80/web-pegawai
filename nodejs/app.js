@@ -1,7 +1,7 @@
 require('dotenv').config();
 require('./config/db');
 const express = require('express');
-const session = require('express-session');
+const cookieSession = require('cookie-session');
 const crypto = require('crypto');
 const path = require('path');
 
@@ -14,16 +14,17 @@ const PORT = process.env.PORT || 3000;
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
+app.set('trust proxy', true);
+
 app.use(express.urlencoded({ extended: false }));
 
-app.use(session({
+app.use(cookieSession({
+  name: 'kepegawaian_session',
   secret: process.env.SESSION_SECRET || 'ganti-dengan-secret-panjang-acak',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    httpOnly: true,
-    sameSite: 'lax'
-  }
+  httpOnly: true,
+  sameSite: 'lax',
+  secure: process.env.NODE_ENV === 'production',
+  maxAge: 8 * 60 * 60 * 1000
 }));
 
 app.use((req, res, next) => {
@@ -59,6 +60,10 @@ app.use((err, req, res, next) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server berjalan di http://localhost:${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Server berjalan di http://localhost:${PORT}`);
+  });
+}
+
+module.exports = app;

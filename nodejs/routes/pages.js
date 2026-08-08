@@ -219,9 +219,8 @@ router.get('/', async (req, res, next) => {
 });
 
 router.get('/logout', (req, res) => {
-  req.session.destroy(() => {
-    res.redirect('/?hal=home');
-  });
+  req.session = null;
+  res.redirect('/?hal=home');
 });
 
 async function renderModul(res, req, view, cfg) {

@@ -5,7 +5,9 @@ require('dotenv').config();
 
 const DB_FILE = process.env.DB_FILE
   ? path.resolve(process.env.DB_FILE)
-  : path.join(__dirname, '..', 'database.sqlite');
+  : process.env.VERCEL
+    ? '/tmp/database.sqlite'
+    : path.join(__dirname, '..', 'database.sqlite');
 
 const db = new DatabaseSync(DB_FILE);
 

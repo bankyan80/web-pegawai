@@ -27,10 +27,15 @@ router.post('/login', async (req, res) => {
     const rs = await model.otentikasi(username, password);
     if (rs) {
       await model.hapusPercobaan(username);
-      req.session.regenerate(() => {
-        req.session.MEMBER = rs;
-        res.redirect('/?hal=pegawai');
-      });
+      req.session.MEMBER = {
+        id: rs.id,
+        fullname: rs.fullname,
+        username: rs.username,
+        role: rs.role,
+        email: rs.email,
+        foto: rs.foto
+      };
+      res.redirect('/?hal=pegawai');
     } else {
       await model.catatPercobaan(username, ip);
       res.redirect('/?hal=form_login&error=1');
