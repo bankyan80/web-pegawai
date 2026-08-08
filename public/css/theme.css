@@ -45,10 +45,14 @@ a:hover {
 }
 
 /* ============ NAVBAR ============ */
-.tm-navbar {
+.tm-header {
   position: sticky;
   top: 0;
   z-index: 1030;
+}
+
+.tm-navbar {
+  position: relative;
   background: var(--tm-gradient);
   padding: 0.55rem 1rem;
   box-shadow: 0 4px 18px rgba(79, 70, 229, 0.35);

@@ -27,8 +27,10 @@
 
 <body>
 
-	<%- include('partials/menu') %>
-	<% if (member) { %><%- include('partials/menu_kepegawaian') %><% } %>
+	<header class="tm-header">
+		<%- include('partials/menu') %>
+		<% if (member) { %><%- include('partials/menu_kepegawaian') %><% } %>
+	</header>
 
 	<div class="container-fluid main-wrapper">
 		<div class="row">
