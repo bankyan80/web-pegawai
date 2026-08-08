@@ -32,7 +32,8 @@ const routes = {
   form_materi: 'form_materi',
   kelolaUser: 'kelolaUser',
   form_user: 'form_user',
-  profile: 'profile'
+  profile: 'profile',
+  analytics: 'analytics'
 };
 
 const auth = {
@@ -52,7 +53,8 @@ const auth = {
   materi: 'staff',
   form_materi: 'staff',
   kelolaUser: 'admin',
-  form_user: 'admin'
+  form_user: 'admin',
+  analytics: 'admin'
 };
 
 function renderPage(res, req, view, locals) {
@@ -561,12 +563,11 @@ router.get('/presensi', async (req, res, next) => {
         table: tid,
         nipMap: D.pegawai.reduce((acc, p) => { acc[p.nama] = p.nip; return acc; }, {}),
         fields: [
-          { name: 'nama', label: 'Nama Pegawai', type: 'select', options: D.pegawai.map((p) => p.nama), required: true },
+          { name: 'nama', label: 'Nama Pegawai', type: 'select', options: D.pegawai.map((p) => p.nama), searchable: true, required: true },
           { name: 'nip', label: 'NIP' },
           { name: 'tahun', type: 'hidden', value: tahun },
-          { name: 'bulan', label: 'Bulan', type: 'select', options: BULAN_INDO, required: true },
-          { name: 'file', label: 'File PDF Presensi', type: 'file', required: true },
-          { name: 'keterangan', label: 'Keterangan', type: 'textarea' }
+          { name: 'keterangan', label: 'Keterangan', type: 'textarea' },
+          { name: 'berkas', label: 'Daftar Bulan & File PDF', type: 'batch', span: 12, months: BULAN_INDO }
         ]
       }
     };
@@ -1729,6 +1730,24 @@ router.get('/kelola-menu', async (req, res, next) => {
       menuRows: rows
     };
     return renderModul(res, req, 'kelola_menu', cfg);
+  } catch (err) {
+    return next(err);
+  }
+});
+
+// Analytics & Audit Route
+router.get('/analytics', async (req, res, next) => {
+  if (!req.session.MEMBER) {
+    return res.redirect('/?hal=form_login');
+  }
+  if (req.session.MEMBER.role !== 'administrator') {
+    return res.render('pages/denied');
+  }
+  try {
+    res.render('pages/analytics', {
+      title: 'Analytics & Audit',
+      MEMBER: req.session.MEMBER
+    });
   } catch (err) {
     return next(err);
   }

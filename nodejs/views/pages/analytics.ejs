@@ -1,0 +1,489 @@
+<div class="analytics-container">
+  <div class="row mb-4">
+    <div class="col-12">
+      <h1 class="page-title">
+        <i class="fas fa-chart-line"></i>
+        Analytics & Audit Kepegawaian
+      </h1>
+      <p class="text-muted">Analisis data kepegawaian real-time dengan AI Cloudflare</p>
+    </div>
+  </div>
+
+  <% if (error) { %>
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+      <i class="fas fa-exclamation-circle"></i>
+      <strong>Error:</strong> <%= error %>
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  <% } %>
+
+  <!-- Action Buttons -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="btn-group" role="group">
+        <button class="btn btn-primary" onclick="loadStatistics()" id="btn-statistics">
+          <i class="fas fa-chart-bar"></i> Statistik
+        </button>
+        <button class="btn btn-info" onclick="loadAnalyze()" id="btn-analyze" disabled>
+          <i class="fas fa-brain"></i> Analisis AI
+        </button>
+        <button class="btn btn-warning" onclick="loadAudit()" id="btn-audit" disabled>
+          <i class="fas fa-clipboard-check"></i> Audit Data
+        </button>
+        <button class="btn btn-success" onclick="loadRecommendations()" id="btn-recommendations" disabled>
+          <i class="fas fa-lightbulb"></i> Rekomendasi
+        </button>
+        <button class="btn btn-dark" onclick="loadFullReport()" id="btn-full-report" disabled>
+          <i class="fas fa-file-pdf"></i> Laporan Lengkap
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading Spinner -->
+  <div id="loading" style="display: none;" class="text-center my-5">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+    <p class="mt-3 text-muted">Memproses data... (AI processing bisa butuh 10-30 detik)</p>
+  </div>
+
+  <!-- Content Area -->
+  <div id="content" style="display: none;">
+    
+    <!-- Statistics Section -->
+    <div id="statistics-section" style="display: none;" class="mb-5">
+      <div class="card border-primary">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Statistik Kepegawaian</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-3 mb-3">
+              <div class="stat-box bg-light p-3 rounded">
+                <div class="stat-value" id="stat-pegawai">-</div>
+                <div class="stat-label text-muted">Total Pegawai</div>
+              </div>
+            </div>
+            <div class="col-md-3 mb-3">
+              <div class="stat-box bg-light p-3 rounded">
+                <div class="stat-value" id="stat-divisi">-</div>
+                <div class="stat-label text-muted">Total Divisi</div>
+              </div>
+            </div>
+            <div class="col-md-3 mb-3">
+              <div class="stat-box bg-light p-3 rounded">
+                <div class="stat-value" id="stat-jabatan">-</div>
+                <div class="stat-label text-muted">Total Jabatan</div>
+              </div>
+            </div>
+            <div class="col-md-3 mb-3">
+              <div class="stat-box bg-light p-3 rounded">
+                <div class="stat-value" id="stat-user">-</div>
+                <div class="stat-label text-muted">Total User</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Distribution Charts -->
+          <div class="row mt-4">
+            <div class="col-md-6">
+              <h6><i class="fas fa-pie-chart"></i> Distribusi per Divisi</h6>
+              <div id="divisi-distribution" class="table-responsive">
+                <table class="table table-sm">
+                  <thead>
+                    <tr><th>Divisi</th><th>Jumlah</th></tr>
+                  </thead>
+                  <tbody id="divisi-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <h6><i class="fas fa-pie-chart"></i> Distribusi per Jabatan</h6>
+              <div id="jabatan-distribution" class="table-responsive">
+                <table class="table table-sm">
+                  <thead>
+                    <tr><th>Jabatan</th><th>Jumlah</th></tr>
+                  </thead>
+                  <tbody id="jabatan-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI Analysis Section -->
+    <div id="analyze-section" style="display: none;" class="mb-5">
+      <div class="card border-info">
+        <div class="card-header bg-info text-white">
+          <h5 class="mb-0"><i class="fas fa-brain"></i> Analisis Data Berbasis AI</h5>
+        </div>
+        <div class="card-body">
+          <div class="alert alert-light border" style="white-space: pre-wrap; font-family: 'Segoe UI', sans-serif;" id="analyze-content">
+            -
+          </div>
+          <small class="text-muted">
+            <i class="fas fa-info-circle"></i>
+            AI Analysis menggunakan Cloudflare Workers AI (Llama 3.1 8B Instruct)
+          </small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Audit Section -->
+    <div id="audit-section" style="display: none;" class="mb-5">
+      <div class="card border-warning">
+        <div class="card-header bg-warning">
+          <h5 class="mb-0"><i class="fas fa-clipboard-check"></i> Audit Integritas Data</h5>
+        </div>
+        <div class="card-body">
+          <div id="audit-issues" class="mb-3">
+            <h6>Issues Ditemukan:</h6>
+            <div id="issues-list">
+              <span class="text-muted">-</span>
+            </div>
+          </div>
+          <div class="alert alert-light border" style="white-space: pre-wrap; font-family: 'Segoe UI', sans-serif;" id="audit-content">
+            -
+          </div>
+          <small class="text-muted">
+            <i class="fas fa-info-circle"></i>
+            Audit memeriksa: pegawai tanpa divisi/jabatan, data incomplete, divisi/jabatan kosong
+          </small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recommendations Section -->
+    <div id="recommendations-section" style="display: none;" class="mb-5">
+      <div class="card border-success">
+        <div class="card-header bg-success text-white">
+          <h5 class="mb-0"><i class="fas fa-lightbulb"></i> Rekomendasi Pengembangan SDM</h5>
+        </div>
+        <div class="card-body">
+          <div class="alert alert-light border" style="white-space: pre-wrap; font-family: 'Segoe UI', sans-serif;" id="recommendations-content">
+            -
+          </div>
+          <small class="text-muted">
+            <i class="fas fa-info-circle"></i>
+            Rekomendasi strategis untuk pengembangan karyawan
+          </small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Full Report Section -->
+    <div id="full-report-section" style="display: none;" class="mb-5">
+      <div class="card border-dark">
+        <div class="card-header bg-dark text-white">
+          <h5 class="mb-0"><i class="fas fa-file-pdf"></i> Laporan Komprehensif</h5>
+        </div>
+        <div class="card-body">
+          <div class="accordion" id="reportAccordion">
+            <div class="accordion-item">
+              <h2 class="accordion-header">
+                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseStats">
+                  <i class="fas fa-chart-bar"></i> Statistik
+                </button>
+              </h2>
+              <div id="collapseStats" class="accordion-collapse collapse show" data-bs-parent="#reportAccordion">
+                <div class="accordion-body" id="report-statistics"></div>
+              </div>
+            </div>
+            <div class="accordion-item">
+              <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAnalysis">
+                  <i class="fas fa-brain"></i> Analisis
+                </button>
+              </h2>
+              <div id="collapseAnalysis" class="accordion-collapse collapse" data-bs-parent="#reportAccordion">
+                <div class="accordion-body" style="white-space: pre-wrap;" id="report-analysis"></div>
+              </div>
+            </div>
+            <div class="accordion-item">
+              <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAudit">
+                  <i class="fas fa-clipboard-check"></i> Audit
+                </button>
+              </h2>
+              <div id="collapseAudit" class="accordion-collapse collapse" data-bs-parent="#reportAccordion">
+                <div class="accordion-body" style="white-space: pre-wrap;" id="report-audit"></div>
+              </div>
+            </div>
+            <div class="accordion-item">
+              <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseRecommendations">
+                  <i class="fas fa-lightbulb"></i> Rekomendasi
+                </button>
+              </h2>
+              <div id="collapseRecommendations" class="accordion-collapse collapse" data-bs-parent="#reportAccordion">
+                <div class="accordion-body" style="white-space: pre-wrap;" id="report-recommendations"></div>
+              </div>
+            </div>
+          </div>
+          <div class="mt-3">
+            <button class="btn btn-primary btn-sm" onclick="exportReport()">
+              <i class="fas fa-download"></i> Download Report (JSON)
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<style>
+.analytics-container {
+  padding: 20px;
+}
+
+.page-title {
+  color: #4338ca;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.stat-box {
+  text-align: center;
+  border-left: 4px solid #4338ca;
+}
+
+.stat-value {
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: #4338ca;
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  margin-top: 5px;
+}
+
+.btn-group .btn:disabled {
+  opacity: 0.5;
+}
+
+.btn-group .btn.active {
+  box-shadow: inset 0 0 0 3px rgba(67, 56, 202, 0.25);
+}
+
+.accordion-button:not(.collapsed) {
+  background-color: rgba(67, 56, 202, 0.1);
+  color: #4338ca;
+}
+</style>
+
+<script>
+const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+async function loadStatistics() {
+  showLoading();
+  clearContent();
+  try {
+    const response = await fetch('/api/analysis/statistics', {
+      headers: { 'X-CSRF-Token': CSRF_TOKEN }
+    });
+    if (!response.ok) throw new Error('Failed to fetch statistics');
+    
+    const data = await response.json();
+    if (!data.success) throw new Error(data.error || 'API error');
+
+    const stats = data.data;
+    
+    document.getElementById('stat-pegawai').textContent = stats.totalPegawai;
+    document.getElementById('stat-divisi').textContent = stats.totalDivisi;
+    document.getElementById('stat-jabatan').textContent = stats.totalJabatan;
+    document.getElementById('stat-user').textContent = stats.totalUser;
+
+    // Fill tables
+    const divisiTbody = document.getElementById('divisi-tbody');
+    divisiTbody.innerHTML = stats.divisiDistribution
+      .map(d => `<tr><td>${d.nama}</td><td><span class="badge bg-info">${d.jumlah}</span></td></tr>`)
+      .join('');
+
+    const jabatanTbody = document.getElementById('jabatan-tbody');
+    jabatanTbody.innerHTML = stats.jabatanDistribution
+      .map(j => `<tr><td>${j.nama}</td><td><span class="badge bg-success">${j.jumlah}</span></td></tr>`)
+      .join('');
+
+    document.getElementById('statistics-section').style.display = 'block';
+    enableButtons(['analyze', 'audit', 'recommendations', 'full-report']);
+    hideLoading();
+    document.getElementById('content').style.display = 'block';
+  } catch (error) {
+    showError('Statistics Error: ' + error.message);
+  }
+}
+
+async function loadAnalyze() {
+  showLoading();
+  try {
+    const response = await fetch('/api/analysis/analyze', {
+      headers: { 'X-CSRF-Token': CSRF_TOKEN }
+    });
+    if (!response.ok) throw new Error('Failed to fetch analysis');
+    
+    const data = await response.json();
+    if (!data.success) throw new Error(data.error || 'API error');
+
+    document.getElementById('analyze-content').textContent = data.data.aiAnalysis;
+    document.getElementById('analyze-section').style.display = 'block';
+    hideLoading();
+    document.getElementById('content').style.display = 'block';
+  } catch (error) {
+    showError('Analysis Error: ' + error.message);
+  }
+}
+
+async function loadAudit() {
+  showLoading();
+  try {
+    const response = await fetch('/api/analysis/audit', {
+      headers: { 'X-CSRF-Token': CSRF_TOKEN }
+    });
+    if (!response.ok) throw new Error('Failed to fetch audit');
+    
+    const data = await response.json();
+    if (!data.success) throw new Error(data.error || 'API error');
+
+    const audit = data.data;
+    const issuesList = document.getElementById('issues-list');
+    
+    if (audit.issueCount === 0) {
+      issuesList.innerHTML = '<span class="badge bg-success">Tidak ada issues kritis</span>';
+    } else {
+      issuesList.innerHTML = audit.issuesFound
+        .map(issue => `<div class="alert alert-warning mb-2">${issue}</div>`)
+        .join('');
+    }
+
+    document.getElementById('audit-content').textContent = audit.aiAuditReport;
+    document.getElementById('audit-section').style.display = 'block';
+    hideLoading();
+    document.getElementById('content').style.display = 'block';
+  } catch (error) {
+    showError('Audit Error: ' + error.message);
+  }
+}
+
+async function loadRecommendations() {
+  showLoading();
+  try {
+    const response = await fetch('/api/analysis/recommendations', {
+      headers: { 'X-CSRF-Token': CSRF_TOKEN }
+    });
+    if (!response.ok) throw new Error('Failed to fetch recommendations');
+    
+    const data = await response.json();
+    if (!data.success) throw new Error(data.error || 'API error');
+
+    document.getElementById('recommendations-content').textContent = data.data.recommendations;
+    document.getElementById('recommendations-section').style.display = 'block';
+    hideLoading();
+    document.getElementById('content').style.display = 'block';
+  } catch (error) {
+    showError('Recommendations Error: ' + error.message);
+  }
+}
+
+async function loadFullReport() {
+  showLoading();
+  try {
+    const response = await fetch('/api/analysis/full-report', {
+      headers: { 'X-CSRF-Token': CSRF_TOKEN }
+    });
+    if (!response.ok) throw new Error('Failed to fetch report');
+    
+    const data = await response.json();
+    if (!data.success) throw new Error(data.error || 'API error');
+
+    const report = data.data;
+
+    // Statistics
+    const statHtml = `
+      <strong>Statistik Umum:</strong><br>
+      - Total Pegawai: ${report.statistics.totalPegawai}<br>
+      - Total Divisi: ${report.statistics.totalDivisi}<br>
+      - Total Jabatan: ${report.statistics.totalJabatan}<br>
+      - Total User: ${report.statistics.totalUser}
+    `;
+    document.getElementById('report-statistics').innerHTML = statHtml;
+
+    // Analysis
+    document.getElementById('report-analysis').textContent = report.analysis.aiAnalysis;
+
+    // Audit
+    const auditHtml = `
+      Issues: ${report.audit.issueCount}
+      ${report.audit.issuesFound.length > 0 ? '\n' + report.audit.issuesFound.join('\n') : 'Tidak ada issues'}
+      \n\n${report.audit.aiAuditReport}
+    `;
+    document.getElementById('report-audit').textContent = auditHtml;
+
+    // Recommendations
+    document.getElementById('report-recommendations').textContent = report.recommendations.recommendations;
+
+    window.lastReport = data.data;
+    document.getElementById('full-report-section').style.display = 'block';
+    hideLoading();
+    document.getElementById('content').style.display = 'block';
+  } catch (error) {
+    showError('Full Report Error: ' + error.message);
+  }
+}
+
+function exportReport() {
+  if (!window.lastReport) {
+    alert('Belum ada report. Silakan load terlebih dahulu.');
+    return;
+  }
+  
+  const dataStr = JSON.stringify(window.lastReport, null, 2);
+  const dataBlob = new Blob([dataStr], {type: 'application/json'});
+  const url = URL.createObjectURL(dataBlob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `laporan-kepegawaian-${new Date().toISOString().split('T')[0]}.json`;
+  link.click();
+}
+
+function showLoading() {
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('content').style.display = 'none';
+}
+
+function hideLoading() {
+  document.getElementById('loading').style.display = 'none';
+}
+
+function clearContent() {
+  document.getElementById('statistics-section').style.display = 'none';
+  document.getElementById('analyze-section').style.display = 'none';
+  document.getElementById('audit-section').style.display = 'none';
+  document.getElementById('recommendations-section').style.display = 'none';
+  document.getElementById('full-report-section').style.display = 'none';
+}
+
+function enableButtons(buttons) {
+  buttons.forEach(btn => {
+    document.getElementById(`btn-${btn}`).disabled = false;
+  });
+}
+
+function showError(message) {
+  hideLoading();
+  const errorHtml = `<div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <i class="fas fa-exclamation-circle"></i>
+    <strong>Error:</strong> ${message}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>`;
+  document.getElementById('content').innerHTML = errorHtml;
+  document.getElementById('content').style.display = 'block';
+}
+
+// Load statistics on page load
+document.addEventListener('DOMContentLoaded', loadStatistics);
+</script>

@@ -50,10 +50,35 @@
   };
 
   function tableModul(tid) {
-    if (TABLE_MODUL[tid]) return TABLE_MODUL[tid];
+    // Debug logging
+    if (typeof tid === 'string' && tid.length === 0) {
+      console.warn('[KEP] tableModul: tid is empty string, checking form context...');
+    }
+    
+    if (TABLE_MODUL[tid]) {
+      console.log('[KEP] tableModul("' + tid + '") → found in TABLE_MODUL: ' + TABLE_MODUL[tid]);
+      return TABLE_MODUL[tid];
+    }
+    
+    // Check prefix patterns
     if (tid && tid.indexOf('tblRef') === 0) return 'referensi';
+    if (tid && tid.indexOf('tblPrs') === 0) {
+      console.log('[KEP] tableModul("' + tid + '") → matched tblPrs pattern → presensi');
+      return 'presensi';
+    }
+    if (tid && tid.indexOf('modPrs') === 0) {
+      console.log('[KEP] tableModul("' + tid + '") → matched modPrs pattern → presensi');
+      return 'presensi';
+    }
+    if (tid && tid.indexOf('tblPppk') === 0) return 'periode_pppk';
+    if (tid && tid.indexOf('modPppk') === 0) return 'periode_pppk';
+    
+    console.error('[KEP] tableModul("' + tid + '") → NO MATCH! Returning empty string');
     return '';
   }
+  
+  // Expose to window for debugging
+  window.tableModul = tableModul;
 
   function csrfToken() {
     var m = document.querySelector('meta[name="csrf-token"]');
@@ -258,17 +283,27 @@
       var input = modal.querySelector('[name="' + name + '"]');
       if (input) input.value = record[name];
     });
+    syncSearchableInputs(modal);
+    populateBatchForEdit(modal, record);
     $(modal).modal('show');
   }
 
   // Saat modal dibuka via tombol "Tambah" (bukan Edit), reset status edit & judul.
   $(document).on('show.bs.modal', '.modal', function () {
+    initSearchable(this);
     var form = this.querySelector('.kep-form');
     if (!form) return;
     if (form.getAttribute('data-editing-id')) return;
     var title = this.querySelector('.kep-modal-title');
     var ori = this.getAttribute('data-title-ori');
     if (title && ori) title.textContent = ori;
+    Array.prototype.slice.call(this.querySelectorAll('select[data-searchable]')).forEach(function (sel) {
+      if (sel._kepSearch) {
+        sel._kepSearch.input.value = '';
+        sel._kepSearch.close();
+      }
+    });
+    resetBatchWrap(this);
   });
   $(document).on('hidden.bs.modal', '.modal', function () {
     var form = this.querySelector('.kep-form');
@@ -324,6 +359,310 @@
     if (nipInput && map[sel.value]) nipInput.value = map[sel.value];
   });
 
+  // Ubah <select data-searchable> menjadi pilihan dengan pencarian (typeahead).
+  function enhanceSearchableSelect(sel) {
+    if (sel.getAttribute('data-enhanced') === '1') return;
+    sel.setAttribute('data-enhanced', '1');
+
+    var wrap = document.createElement('div');
+    wrap.className = 'kep-searchable';
+
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'form-control kep-searchable-input';
+    input.placeholder = 'Ketik nama untuk mencari...';
+    input.setAttribute('autocomplete', 'off');
+
+    var dd = document.createElement('div');
+    dd.className = 'kep-searchable-dd';
+
+    wrap.appendChild(input);
+    wrap.appendChild(dd);
+    sel.parentNode.insertBefore(wrap, sel);
+    sel.style.display = 'none';
+
+    function close() { dd.style.display = 'none'; }
+
+    var api = { input: input, dd: dd, close: close };
+
+    function opts() {
+      return Array.prototype.slice.call(sel.options).filter(function (o) { return o.value !== ''; });
+    }
+
+    function itemFor(option) {
+      var item = document.createElement('div');
+      item.className = 'kep-searchable-item';
+      item.textContent = option.text;
+      item.addEventListener('mousedown', function (ev) {
+        ev.preventDefault();
+        pick(option);
+      });
+      return item;
+    }
+
+    function render(q) {
+      var needle = String(q || '').toLowerCase();
+      var list = opts().filter(function (o) { return o.text.toLowerCase().indexOf(needle) !== -1; });
+      dd.innerHTML = '';
+      if (!list.length) {
+        var empty = document.createElement('div');
+        empty.className = 'kep-searchable-empty';
+        empty.textContent = 'Tidak ada nama yang cocok';
+        dd.appendChild(empty);
+        dd.style.display = 'block';
+        return;
+      }
+      list.forEach(function (o) { dd.appendChild(itemFor(o)); });
+      dd.style.display = 'block';
+    }
+
+    function pick(o) {
+      sel.value = o.value;
+      input.value = o.text;
+      close();
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    function syncFromSelect() {
+      var o = sel.selectedOptions && sel.selectedOptions[0];
+      input.value = o && o.value ? o.text : '';
+    }
+
+    api.sync = syncFromSelect;
+
+    input.addEventListener('focus', function () { render(input.value); });
+    input.addEventListener('input', function () { render(input.value); });
+    input.addEventListener('keydown', function (e) {
+      var items = Array.prototype.slice.call(dd.querySelectorAll('.kep-searchable-item'));
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        if (items.length) {
+          var cur = Math.max(0, items.indexOf(document.activeElement));
+          var next = (e.key === 'ArrowDown') ? (cur + 1) % items.length : (cur - 1 + items.length) % items.length;
+          items.forEach(function (it) { it.classList.remove('active'); });
+          items[next].classList.add('active');
+          items[next].focus();
+        }
+        e.preventDefault();
+      } else if (e.key === 'Enter') {
+        var active = dd.querySelector('.kep-searchable-item.active') || items[0];
+        if (active) {
+          var match = opts().filter(function (o) { return o.text === active.textContent; })[0];
+          if (match) pick(match);
+        }
+        e.preventDefault();
+      } else if (e.key === 'Escape') {
+        close();
+        e.preventDefault();
+      }
+    });
+    input.addEventListener('blur', function () { setTimeout(close, 150); });
+
+    document.addEventListener('click', function (e) {
+      if (!wrap.contains(e.target)) close();
+    });
+
+    sel._kepSearch = api;
+    return api;
+  }
+
+  function initSearchable(scope) {
+    var sels = scope
+      ? Array.prototype.slice.call(scope.querySelectorAll('select[data-searchable]'))
+      : Array.prototype.slice.call(document.querySelectorAll('select[data-searchable]'));
+    sels.forEach(enhanceSearchableSelect);
+  }
+
+  function syncSearchableInputs(scope) {
+    Array.prototype.slice.call(scope.querySelectorAll('select[data-searchable]')).forEach(function (sel) {
+      if (sel._kepSearch) sel._kepSearch.sync();
+    });
+  }
+
+  var BULAN_NAMES = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+  function bulanFromFilename(name) {
+    var up = String(name || '').toUpperCase();
+    for (var i = 0; i < BULAN_NAMES.length; i++) {
+      if (up.indexOf(BULAN_NAMES[i].toUpperCase()) !== -1) return BULAN_NAMES[i];
+    }
+    return '';
+  }
+
+  // Tambah/hapus baris pada form batch (banyak Bulan+File).
+  document.addEventListener('click', function (e) {
+    var addBtn = e.target.closest('.kep-batch-add');
+    if (addBtn) {
+      var wrap = addBtn.closest('.kep-batch-wrap');
+      var proto = wrap.querySelector('.kep-batch-row');
+      var row = proto.cloneNode(true);
+      var bsel = row.querySelector('.kep-batch-bulan');
+      if (bsel) bsel.value = '';
+      var fin = row.querySelector('.kep-batch-file');
+      if (fin) fin.value = '';
+      wrap.querySelector('.kep-batch-rows').appendChild(row);
+      return;
+    }
+    var rmBtn = e.target.closest('.kep-batch-remove');
+    if (rmBtn) {
+      var wrap2 = rmBtn.closest('.kep-batch-wrap');
+      var row2 = rmBtn.closest('.kep-batch-row');
+      if (wrap2.querySelectorAll('.kep-batch-row').length > 1) {
+        row2.parentNode.removeChild(row2);
+      } else {
+        var bsel2 = row2.querySelector('.kep-batch-bulan');
+        if (bsel2) bsel2.value = '';
+        var fin2 = row2.querySelector('.kep-batch-file');
+        if (fin2) fin2.value = '';
+      }
+    }
+  });
+
+  // Saat memilih file PDF, isi Bulan otomatis dari nama file.
+  document.addEventListener('change', function (e) {
+    var fin = e.target.closest('.kep-batch-file');
+    if (!fin) return;
+    var row = fin.closest('.kep-batch-row');
+    if (!row) return;
+    var bsel = row.querySelector('.kep-batch-bulan');
+    if (!bsel || bsel.value) return;
+    var f = fin.files && fin.files[0];
+    if (!f) return;
+    var bulan = bulanFromFilename(f.name);
+    if (bulan) bsel.value = bulan;
+  });
+
+  function resetBatchWrap(scope) {
+    Array.prototype.slice.call(scope.querySelectorAll('.kep-batch-wrap')).forEach(function (wrap) {
+      wrap.removeAttribute('data-existing');
+      var rows = wrap.querySelectorAll('.kep-batch-row');
+      for (var i = 1; i < rows.length; i++) rows[i].parentNode.removeChild(rows[i]);
+      var r0 = wrap.querySelector('.kep-batch-row');
+      if (r0) {
+        var bsel = r0.querySelector('.kep-batch-bulan');
+        if (bsel) bsel.value = '';
+        var fin = r0.querySelector('.kep-batch-file');
+        if (fin) fin.value = '';
+      }
+      var note = wrap.querySelector('.kep-batch-note');
+      if (note) note.style.display = '';
+      var addBtn = wrap.querySelector('.kep-batch-add');
+      if (addBtn) addBtn.style.display = '';
+    });
+  }
+
+  function populateBatchForEdit(modal, record) {
+    var wrap = modal.querySelector('.kep-batch-wrap');
+    if (!wrap) return;
+    var rows = wrap.querySelectorAll('.kep-batch-row');
+    for (var i = 1; i < rows.length; i++) rows[i].parentNode.removeChild(rows[i]);
+    var r0 = wrap.querySelector('.kep-batch-row');
+    if (r0) {
+      var bsel = r0.querySelector('.kep-batch-bulan');
+      if (bsel) bsel.value = record.bulan || '';
+    }
+    var existing = {};
+    if (record.bulan) existing[record.bulan] = record.file || '';
+    wrap.setAttribute('data-existing', JSON.stringify(existing));
+    var note = wrap.querySelector('.kep-batch-note');
+    if (note) note.style.display = record.file ? 'none' : '';
+    var addBtn = wrap.querySelector('.kep-batch-add');
+    if (addBtn) addBtn.style.display = 'none';
+  }
+
+  function submitBatch(form, modul, editingId) {
+    var wrap = form.querySelector('.kep-batch-wrap');
+    var rows = Array.prototype.slice.call(wrap.querySelectorAll('.kep-batch-row'));
+    var nama = form.querySelector('select[name="nama"]');
+    var nip = form.querySelector('input[name="nip"]');
+    var tahun = form.querySelector('input[name="tahun"]');
+    var ket = form.querySelector('textarea[name="keterangan"]');
+
+    if (!nama || !nama.value) {
+      kepToast('Pilih nama pegawai.');
+      return;
+    }
+
+    var existing = {};
+    try { existing = JSON.parse(wrap.getAttribute('data-existing') || '{}'); } catch (err) {}
+
+    var bulanSet = {};
+    var hasData = false;
+    var dup = '';
+    rows.forEach(function (row) {
+      var bulan = row.querySelector('.kep-batch-bulan').value;
+      var hasFile = row.querySelector('.kep-batch-file').files && row.querySelector('.kep-batch-file').files[0];
+      if (!bulan) return;
+      if (bulanSet[bulan]) {
+        dup = bulan;
+      } else {
+        bulanSet[bulan] = true;
+        if (hasFile || existing[bulan]) hasData = true;
+      }
+    });
+    if (dup) {
+      kepToast('Bulan "' + dup + '" dipilih lebih dari sekali.');
+      return;
+    }
+    if (!hasData) {
+      kepToast('Pilih minimal satu bulan beserta file PDF-nya.');
+      return;
+    }
+
+    var rowsToSubmit = rows.filter(function (row) {
+      var bulan = row.querySelector('.kep-batch-bulan').value;
+      var hasFile = row.querySelector('.kep-batch-file').files && row.querySelector('.kep-batch-file').files[0];
+      return bulan && (hasFile || existing[bulan]);
+    });
+    if (editingId && rowsToSubmit.length > 1) rowsToSubmit = rowsToSubmit.slice(0, 1);
+
+    var tasks = rowsToSubmit.map(function (row) {
+      var bulan = row.querySelector('.kep-batch-bulan').value;
+      var fin = row.querySelector('.kep-batch-file');
+      var payload = {
+        nama: nama.value,
+        nip: nip.value,
+        tahun: tahun.value,
+        bulan: bulan,
+        keterangan: ket ? ket.value : '',
+        file: existing[bulan] || ''
+      };
+      return new Promise(function (resolve) {
+        if (fin.files && fin.files[0]) {
+          uploadFile('dokumen', fin.files[0], function (err, url) {
+            if (err) resolve({ ok: false, error: 'Upload ' + bulan + ' gagal: ' + err });
+            else { payload.file = url; resolve({ ok: true, payload: payload }); }
+          });
+        } else {
+          resolve({ ok: true, payload: payload });
+        }
+      });
+    });
+
+    Promise.all(tasks).then(function (results) {
+      for (var i = 0; i < results.length; i++) {
+        if (!results[i].ok) { kepToast(results[i].error); return; }
+      }
+      var calls = results.map(function (r) {
+        var url = '/api/kep/' + modul + (editingId ? '/' + editingId : '');
+        var method = editingId ? 'PUT' : 'POST';
+        return fetch(url, { method: method, headers: apiHeaders(), body: JSON.stringify(r.payload) })
+          .then(function (r2) { return r2.json(); });
+      });
+      Promise.all(calls).then(function (ress) {
+        for (var j = 0; j < ress.length; j++) {
+          if (!ress[j].ok) { kepToast('Gagal menyimpan: ' + (ress[j].error || 'unknown')); return; }
+        }
+        kepToast('Data berhasil disimpan.');
+        var modal = document.getElementById(form.getAttribute('data-modal'));
+        if (modal) $(modal).modal('hide');
+        form.reset();
+        form.classList.remove('was-validated');
+        form.removeAttribute('data-editing-id');
+        setTimeout(function () { location.reload(); }, 600);
+      }).catch(function () { kepToast('Terjadi kesalahan saat menyimpan.'); });
+    });
+  }
+
   document.addEventListener('submit', function (e) {
     var form = e.target;
     if (!form.classList.contains('kep-form')) return;
@@ -334,10 +673,40 @@
       return;
     }
 
-    var modul = tableModul(form.getAttribute('data-table'));
+    var dataTable = form.getAttribute('data-table');
+    var dataModal = form.getAttribute('data-modal') || '';
+    console.log('[KEP] Form submit detected', { dataTable, dataModal });
+    
+    // Fallback: if data-table is empty, try to infer from data-modal
+    if (!dataTable && dataModal) {
+      console.warn('[KEP] data-table is empty, attempting fallback from data-modal: ' + dataModal);
+      // Try to infer table ID from modal ID
+      if (dataModal.indexOf('modPrs') === 0) {
+        dataTable = dataModal.replace('modPrs', 'tblPrs');
+        console.log('[KEP] Fallback table ID: ' + dataTable);
+      } else if (dataModal.indexOf('modPppk') === 0) {
+        dataTable = dataModal.replace('modPppk', 'tblPppk');
+        console.log('[KEP] Fallback table ID: ' + dataTable);
+      }
+    }
+    
+    var modul = tableModul(dataTable);
     var editingId = form.getAttribute('data-editing-id') || '';
     if (!modul) {
-      kepToast('Modul tidak dikenali untuk penyimpanan.');
+      console.error('[KEP] ERROR: Module tidak dikenali!', {
+        dataTable: dataTable,
+        dataModal: dataModal,
+        formId: form.id,
+        batchWrap: form.querySelector('.kep-batch-wrap') ? 'YES' : 'NO'
+      });
+      kepToast('❌ Modul tidak dikenali. Buka console (F12) untuk details. Refresh halaman dan coba lagi.');
+      return;
+    }
+    
+    console.log('[KEP] Module recognized: ' + modul);
+
+    if (form.querySelector('.kep-batch-wrap')) {
+      submitBatch(form, modul, editingId);
       return;
     }
 

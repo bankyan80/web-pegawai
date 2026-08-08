@@ -7,15 +7,25 @@ class Login {
     const rows = await sb.select('member', { filters: ['username=eq.' + encodeURIComponent(username)] });
     const rs = rows[0];
     if (rs) {
-      const sha1Hash = crypto.createHash('sha1').update(password).digest('hex');
-      const bcryptMatch = rs.passwors.startsWith('$2') && bcryptCompare(password, rs.passwors);
-      if (bcryptMatch) {
-        return rs;
+      // Check bcrypt hash (async)
+      if (rs.passwors.startsWith('$2')) {
+        try {
+          const bcryptMatch = await bcrypt.compare(password, rs.passwors);
+          if (bcryptMatch) {
+            return rs;
+          }
+        } catch (err) {
+          console.error('Bcrypt compare error:', err.message);
+        }
       }
+      
+      // Fallback: Check SHA1 hash (legacy)
+      const sha1Hash = crypto.createHash('sha1').update(password).digest('hex');
       if (sha1Hash === rs.passwors) {
         await this.gantiPassword(rs.id, password);
         return rs;
       }
+      
       return null;
     }
     return this.otentikasiPegawai(username, password);

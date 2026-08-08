@@ -5,16 +5,16 @@
 				<h5 class="modal-title"><i class="fas fa-pen-square"></i> <span class="kep-modal-title"><%= modal.title %></span></h5>
 				<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
 			</div>
-			<form class="kep-form" data-modal="<%= modal.id %>" data-table="<%= modal.table || '' %>" data-nip-map='<%- modal.nipMap ? JSON.stringify(modal.nipMap) : '' %>' novalidate>
+			<form class="kep-form" data-modal="<%= modal.id %>" data-table="<%= modal.table || '' %>" data-nip-map='<%= modal.nipMap ? JSON.stringify(modal.nipMap) : '' %>' novalidate>
 				<div class="modal-body">
 					<div class="row">
 						<% modal.fields.forEach(function (f) { %>
-							<div class="col-md-6 form-group">
+							<div class="col-md-<%= f.span || 6 %> form-group">
 								<label for="<%= modal.id %>_<%= f.name %>"><%= f.label %><% if (f.required) { %> <span class="text-danger">*</span><% } %></label>
 								<% if (f.type === 'hidden') { %>
 								<input type="hidden" name="<%= f.name %>" value="<%= f.value !== undefined ? f.value : '' %>" />
-							<% } else if (f.type === 'select') { %>
-									<select class="form-control" name="<%= f.name %>" id="<%= modal.id %>_<%= f.name %>" data-col="<%= f.col !== undefined ? f.col : '' %>" <% if (f.required) { %>required<% } %>>
+								<% } else if (f.type === 'select') { %>
+									<select class="form-control" name="<%= f.name %>" id="<%= modal.id %>_<%= f.name %>" data-col="<%= f.col !== undefined ? f.col : '' %>" <% if (f.searchable) { %>data-searchable="1"<% } %> <% if (f.required) { %>required<% } %>>
 										<option value="">-- Pilih <%= f.label %> --</option>
 										<% (f.options || []).forEach(function (o) { %>
 											<option value="<%= o %>"><%= o %></option>
@@ -22,6 +22,23 @@
 									</select>
 								<% } else if (f.type === 'textarea') { %>
 									<textarea class="form-control" name="<%= f.name %>" id="<%= modal.id %>_<%= f.name %>" rows="2" data-col="<%= f.col !== undefined ? f.col : '' %>" <% if (f.required) { %>required<% } %>><%= f.value || '' %></textarea>
+								<% } else if (f.type === 'batch') { %>
+									<div class="kep-batch-wrap" data-field="<%= f.name %>">
+										<div class="kep-batch-rows">
+											<div class="kep-batch-row">
+												<select class="form-control kep-batch-bulan">
+													<option value="">-- Pilih Bulan --</option>
+													<% (f.months || []).forEach(function (b) { %><option value="<%= b %>"><%= b %></option><% }) %>
+												</select>
+												<input type="file" class="form-control-file kep-batch-file" accept="application/pdf,.pdf" />
+												<button type="button" class="btn btn-sm btn-outline-danger kep-batch-remove" title="Hapus baris"><i class="fas fa-times"></i></button>
+											</div>
+										</div>
+										<small class="kep-batch-note text-muted">Bulan terisi otomatis dari nama file PDF. Pilih bulan yang sama bila file tidak memuat nama bulan.</small>
+										<div>
+											<button type="button" class="btn btn-sm btn-outline-primary kep-batch-add"><i class="fas fa-plus"></i> Tambah Bulan</button>
+										</div>
+									</div>
 								<% } else if (f.type === 'file') { %>
 									<input type="file" class="form-control-file" name="<%= f.name %>" id="<%= modal.id %>_<%= f.name %>" data-col="<%= f.col !== undefined ? f.col : '' %>" <% if (f.required) { %>required<% } %> />
 									<small class="form-text text-muted">Maks. 2 MB, format PDF/JPG/PNG</small>

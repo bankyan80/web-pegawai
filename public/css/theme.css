@@ -1660,3 +1660,61 @@ body {
   font-size: 0.85rem;
   font-weight: 600;
 }
+
+/* ---------- Searchable Select (typeahead) ---------- */
+.kep-searchable {
+  position: relative;
+}
+.kep-searchable .kep-searchable-dd {
+  position: absolute;
+  z-index: 1060;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 0.25rem;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+  display: none;
+}
+.kep-searchable .kep-searchable-item {
+  padding: 0.45rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.kep-searchable .kep-searchable-item:hover,
+.kep-searchable .kep-searchable-item.active {
+  background: #eef2ff;
+}
+.kep-searchable .kep-searchable-empty {
+  padding: 0.45rem 0.75rem;
+  color: var(--tm-muted, #6c757d);
+  font-size: 0.85rem;
+}
+
+/* ---------- Batch Upload (Banyak Bulan + File) ---------- */
+.kep-batch-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.kep-batch-row .kep-batch-bulan {
+  flex: 0 0 180px;
+  max-width: 180px;
+}
+.kep-batch-row .kep-batch-file {
+  flex: 1 1 auto;
+  margin-bottom: 0;
+  font-size: 0.85rem;
+}
+.kep-batch-row .kep-batch-remove {
+  flex: 0 0 auto;
+}
+.kep-batch-note {
+  display: block;
+  margin-bottom: 0.5rem;
+}
+

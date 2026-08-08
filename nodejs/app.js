@@ -7,6 +7,7 @@ const path = require('path');
 const pages = require('./routes/pages');
 const controllers = require('./routes/controllers');
 const apiKep = require('./routes/api-kep');
+const analysisRoutes = require('./routes/analysis');
 const menuModel = require('./models/menu');
 
 const app = express();
@@ -68,6 +69,7 @@ app.use(async (req, res, next) => {
 app.use('/', pages);
 app.use('/controller', controllers);
 app.use('/api/kep', apiKep);
+app.use('/api/analysis', analysisRoutes);
 
 app.use((err, req, res, next) => {
   console.error(err);

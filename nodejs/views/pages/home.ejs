@@ -31,6 +31,32 @@
 			</div>
 		</div>
 	</div>
+	<% if (member.role === 'administrator') { %>
+		<div class="row mt-3">
+			<div class="col-12">
+				<div class="card border-primary shadow-sm">
+					<div class="card-body">
+						<div class="d-flex align-items-center">
+							<div class="flex-shrink-0">
+								<i class="fas fa-chart-line fa-3x text-primary"></i>
+							</div>
+							<div class="flex-grow-1 ms-3">
+								<h5 class="card-title mb-1">
+									<i class="fas fa-chart-line"></i> Analytics & Audit Kepegawaian
+								</h5>
+								<p class="card-text text-muted mb-2">
+									Analisis data kepegawaian real-time dengan AI Cloudflare. Dapatkan insights mendalam tentang distribusi pegawai, integritas data, dan rekomendasi strategis SDM.
+								</p>
+								<a href="/analytics" class="btn btn-primary btn-sm">
+									<i class="fas fa-chart-bar"></i> Buka Analytics Dashboard
+								</a>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	<% } %>
 <% } else { %>
 	<div class="tm-hero">
 		<h2>Selamat Datang di Sistem Kepegawaian</h2>

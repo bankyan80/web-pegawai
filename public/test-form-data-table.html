@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Form Data-Table Attribute</title>
+</head>
+<body>
+    <h1>KEP Form Data-Table Attribute Tester</h1>
+    <p>Buka halaman /presensi di aplikasi, kemudian paste code di bawah di Console (F12 → Console):</p>
+    
+    <pre><code>
+// 1. Find all forms dengan class kep-form
+var forms = document.querySelectorAll('form.kep-form');
+console.log('Total kep-form found:', forms.length);
+
+// 2. For each form, log data-table attribute
+forms.forEach(function(form, idx) {
+  var dataTable = form.getAttribute('data-table');
+  var dataModal = form.getAttribute('data-modal');
+  var batchWrap = form.querySelector('.kep-batch-wrap') ? 'YES' : 'NO';
+  
+  console.log('Form ' + idx + ':');
+  console.log('  data-table: "' + dataTable + '"');
+  console.log('  data-modal: "' + dataModal + '"');
+  console.log('  has batch-wrap: ' + batchWrap);
+  
+  // Test tableModul if function exists
+  if (typeof tableModul === 'function') {
+    var modul = tableModul(dataTable);
+    console.log('  tableModul("' + dataTable + '") → "' + modul + '"');
+  }
+  
+  // If no data-table, check parent modal
+  if (!dataTable) {
+    var modal = form.closest('[role="dialog"]');
+    if (modal) {
+      console.log('  WARNING: Form dalam modal, modal id: ' + modal.id);
+    }
+  }
+  console.log('---');
+});
+
+// 3. Check if tableModul is global
+if (typeof tableModul === 'function') {
+  console.log('✅ tableModul is global function');
+} else {
+  console.log('❌ tableModul is NOT global - cannot access from console');
+}
+
+// 4. Test all dynamic IDs
+console.log('\nTesting tableModul patterns:');
+var testIds = ['tblPrs0', 'tblPrs1', 'modPrs0', 'modPrs1', 'tblPresensi', 'tblPegawai', ''];
+testIds.forEach(function(id) {
+  if (typeof tableModul === 'function') {
+    console.log('  tableModul("' + id + '") → "' + tableModul(id) + '"');
+  }
+});
+    </code></pre>
+
+    <hr>
+    
+    <h2>Troubleshooting Steps:</h2>
+    <ol>
+        <li>Buka halaman Presensi: <a href="/presensi" target="_blank">/presensi</a></li>
+        <li>Klik tombol "Upload PDF" pada salah satu tahun</li>
+        <li>Modal akan terbuka</li>
+        <li>Buka Developer Tools: <strong>F12</strong></li>
+        <li>Go ke tab <strong>Console</strong></li>
+        <li>Copy-paste code di atas</li>
+        <li>Perhatikan output, terutama:
+            <ul>
+                <li>Apakah <code>data-table</code> attribute tidak kosong?</li>
+                <li>Apakah <code>tableModul()</code> return yang benar?</li>
+                <li>Apakah form punya <code>has batch-wrap: YES</code>?</li>
+            </ul>
+        </li>
+    </ol>
+
+    <hr>
+    
+    <h2>Expected Output:</h2>
+    <pre>
+Total kep-form found: 1
+Form 0:
+  data-table: "tblPrs0"
+  data-modal: "modPrs0"
+  has batch-wrap: YES
+  tableModul("tblPrs0") → "presensi"
+✅ tableModul is global function
+
+Testing tableModul patterns:
+  tableModul("tblPrs0") → "presensi"
+  tableModul("tblPrs1") → "presensi"
+  tableModul("modPrs0") → "presensi"
+  tableModul("modPrs1") → "presensi"
+  tableModul("tblPresensi") → "presensi"
+  tableModul("tblPegawai") → "pegawai"
+  tableModul("") → ""
+    </pre>
+
+    <hr>
+    
+    <p style="color: red;"><strong>Jika output tidak sesuai dengan expected, screenshot dan kirim ke saya!</strong></p>
+</body>
+</html>
