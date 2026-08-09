@@ -1,0 +1,8 @@
+# Contoh Caddyfile untuk HTTPS otomatis (Let's Encrypt).
+# Ganti "contoh.com" dengan domain Anda; pastikan record A domain menunjuk ke IP VPS.
+# Jalankan: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+
+contoh.com {
+    encode zstd gzip
+    reverse_proxy app:3000
+}

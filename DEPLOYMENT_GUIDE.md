@@ -1,331 +1,138 @@
-# 📋 Deployment Guide - Cloudflare AI Integration
+# Panduan Deployment — Web Pegawai (Node.js/Express + Supabase)
 
-**Last Updated**: 2026-08-08  
-**Status**: ✅ Ready for Production
+**Status**: Siap produksi (Vercel live, Docker/VPS siap).
+**Arsitektur**:
+- Aplikasi: Node.js/Express (`nodejs/`, entry `nodejs/app.js`), aset statis di `public/`.
+- Database & file storage: **Supabase cloud** (tidak perlu MySQL/SQLite lokal).
+- Analisis AI: Cloudflare Workers AI (opsional, lewati jika tidak dipakai).
+
+Kredensial disimpan di `nodejs/.env` (contoh: `nodejs/.env.example`). File ini
+**tidak boleh di-commit** (sudah dilindungi `.gitignore` & `.dockerignore`).
 
 ---
 
-## 🚀 Deployment Options
+## Opsi 1 — Docker (disarankan)
 
-### Option 1: Docker (Recommended)
-
-#### Build & Run Local
-
+### 1. Siapkan `.env`
 ```bash
-# Build image
-docker build -t web-pegawai:latest .
-
-# Run container
-docker run -p 3000:3000 \
-  -e CLOUDFLARE_ACCOUNT_ID=your_cloudflare_account_id \
-  -e CLOUDFLARE_API_TOKEN=your_cloudflare_api_token \
-  -e NODE_ENV=production \
-  web-pegawai:latest
+cp nodejs/.env.example nodejs/.env
+# isi SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SESSION_SECRET (acak!)
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-#### Using Docker Compose
-
+### 2. Jalankan (tanpa HTTPS, cukup untuk uji)
 ```bash
-docker-compose up -d
+docker compose up -d --build
+# Aplikasi di http://IP_SERVER:3000
 ```
 
-Update `docker-compose.yml` environment variables:
-```yaml
-services:
-  app:
-    environment:
-      CLOUDFLARE_ACCOUNT_ID: your_cloudflare_account_id
-      CLOUDFLARE_API_TOKEN: your_cloudflare_api_token
-      NODE_ENV: production
-      PORT: 3000
+### 3. Produksi dengan HTTPS otomatis (Caddy + Let's Encrypt)
+```bash
+cp Caddyfile.example Caddyfile
+# ubah "contoh.com" menjadi domain Anda (record A domain -> IP VPS)
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+```
+`docker-compose.prod.yml` menambahkan Caddy di depan aplikasi (app hanya
+terekspos di `127.0.0.1:3000`), sertifikat HTTPS diperbarui otomatis.
+
+### Update aplikasi
+```bash
+git pull
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 ```
 
-#### Docker Hub / Registry Push
-
+### Log
 ```bash
-# Build & tag
-docker build -t yourusername/web-pegawai:latest .
-
-# Push
-docker push yourusername/web-pegawai:latest
+docker logs -f pegawai_web
 ```
 
 ---
 
-### Option 2: Direct Node.js (VPS/Server)
+## Opsi 2 — Node.js langsung di VPS (PM2)
 
-#### Prerequisites
 ```bash
-# Update system
-sudo apt update && apt upgrade -y
-
-# Install Node.js v22+
+# Prasyarat: Node.js v22+ dan git
 curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
 sudo apt install -y nodejs git
-
-# Install PM2 (process manager)
 sudo npm install -g pm2
-```
 
-#### Deploy
-
-```bash
-# Clone repository
-git clone <your-repo-url>
-cd web-pegawai-master
-
-# Copy and update .env
-cp nodejs/.env.example nodejs/.env
-# Edit nodejs/.env with production values
-
-# Install dependencies
+# Deploy
+git clone <repo-url> && cd web-pegawai-master
+cp nodejs/.env.example nodejs/.env   # lalu isi kredensialnya
 cd nodejs
 npm install --omit=dev
-
-# Start with PM2
-pm2 start app.js --name "web-pegawai"
-pm2 save
-pm2 startup
-
-# Check status
-pm2 logs web-pegawai
+pm2 start app.js --name web-pegawai
+pm2 save && pm2 startup
 ```
 
-#### Update on New Releases
+Update:
 ```bash
-cd web-pegawai-master
-git pull
-cd nodejs
-npm install --omit=dev
+cd web-pegawai-master && git pull
+cd nodejs && npm install --omit=dev
 pm2 restart web-pegawai
 ```
 
 ---
 
-### Option 3: Vercel/Netlify (Serverless)
-
-Vercel config already present in `vercel.json`
+## Opsi 3 — Vercel (serverless, kondisi saat ini)
 
 ```bash
-npm install -g vercel
-
-# Login
-vercel login
-
-# Deploy
 vercel --prod
-
-# Set environment variables
+vercel env add SUPABASE_URL
+vercel env add SUPABASE_SERVICE_ROLE_KEY
+vercel env add SESSION_SECRET
 vercel env add CLOUDFLARE_ACCOUNT_ID
 vercel env add CLOUDFLARE_API_TOKEN
-vercel env add SESSION_SECRET
-
-# Deploy again
-vercel --prod
 ```
+Catatan: serverless (Vercel) memiliki cold start ±0,5–1,5 detik. Untuk respons
+tercepat yang konsisten, gunakan Opsi 1/2 (server tetap).
 
 ---
 
-## 🔐 Security Checklist
+## HTTPS
 
-### Pre-Deployment
-
-- [ ] Change `SESSION_SECRET` to long random string
-  ```bash
-  node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+- **Caddy** (paling mudah): otomatis ambil/perbarui sertifikat, lihat `Caddyfile.example`.
+- **nginx + certbot**:
+  ```nginx
+  server {
+    server_name contoh.com;
+    location / { proxy_pass http://127.0.0.1:3000;
+                 proxy_set_header Host $host;
+                 proxy_set_header X-Real-IP $remote_addr;
+                 proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                 proxy_set_header X-Forwarded-Proto $scheme; }
+  }
   ```
-
-- [ ] Verify credentials in `.env`
-  ```bash
-  # Check CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN are set
-  cat nodejs/.env | grep CLOUDFLARE
-  ```
-
-- [ ] Use HTTPS in production (not HTTP)
-  - Configure reverse proxy (nginx, Apache)
-  - Or use Vercel (automatic HTTPS)
-  - Or use Cloudflare Pages
-
-- [ ] Set up rate limiting
-  - API rate limits: Check Cloudflare docs
-  - Consider adding express-rate-limit
-
-- [ ] Enable CORS properly
-  - Only allow trusted origins
-  - Don't use `*`
-
-- [ ] Secure headers middleware (already present)
-  ```
-  X-Frame-Options: SAMEORIGIN
-  X-Content-Type-Options: nosniff
-  Referrer-Policy: strict-origin-when-cross-origin
-  ```
+  lalu `sudo certbot --nginx`.
+- **Cloudflare proxy**: aktifkan "Flexible/Full" di dashboard Cloudflare dan arahkan origin ke VPS.
 
 ---
 
-## 📊 Monitoring & Logging
+## Keamanan
 
-### Error Logs
-
-```bash
-# Docker
-docker logs <container-id>
-
-# PM2
-pm2 logs web-pegawai
-
-# Journalctl (systemd)
-journalctl -u web-pegawai -f
-```
-
-### Performance Monitoring
-
-Set up monitoring for:
-- API response times (10-30s normal for AI)
-- Cloudflare API usage
-- Database query times
-- Server memory/CPU
+- [ ] `SESSION_SECRET` nilai acak (lihat Opsi 1, langkah 1).
+- [ ] `nodejs/.env` jangan pernah di-commit.
+- [ ] Supabase Service Role Key hanya untuk server (jangan bocor ke browser).
+- [ ] Wajib HTTPS di produksi.
+- [ ] Disarankan: `express-rate-limit` untuk API.
 
 ---
 
-## 🔄 Backup & Recovery
+## Backup (Supabase)
 
-### Database Backup
-
-```bash
-# SQLite backup
-cp database.sqlite database.sqlite.backup
-
-# Scheduled backup (cron)
-0 2 * * * cp /path/to/database.sqlite /backups/database.sqlite.$(date +\%Y\%m\%d)
-```
-
-### Environment Backup
-
-```bash
-# Keep backup of .env (SECURE!)
-gpg -c nodejs/.env  # Encrypt with password
-```
+Database & Storage di-backup dari dashboard Supabase (Project Settings → Backup /
+Storage). Back up juga `nodejs/.env` secara aman (mis. `gpg -c nodejs/.env`).
 
 ---
 
-## 🚨 Troubleshooting
+## Troubleshooting
 
-### Server won't start
-
-```bash
-# Check port 3000 is available
-lsof -i :3000
-sudo kill -9 <PID>
-
-# Check Node version
-node -v  # Should be v22+
-
-# Check environment
-cat nodejs/.env
-```
-
-### Cloudflare API errors
-
-```bash
-# Test token
-curl -H "Authorization: Bearer <token>" \
-  https://api.cloudflare.com/client/v4/accounts/<account-id>/tokens/verify
-
-# Check token permissions (should have Workers AI Read/Write)
-```
-
-### Database errors
-
-```bash
-# Check SQLite file exists
-ls -la database.sqlite
-
-# Check permissions
-chmod 664 database.sqlite
-```
-
-### High response times
-
-- Normal for AI (10-30s)
-- Check Cloudflare API status
-- Consider caching results
-- Monitor rate limits
+- **Server tidak jalan / port sibuk**: `lsof -i :3000`, hentikan PID, cek `node -v` (22+).
+- **Error koneksi Supabase**: pastikan `SUPABASE_URL` & `SUPABASE_SERVICE_ROLE_KEY` benar,
+  dan IP VPS tidak diblokir firewall. Uji: `curl -I <SUPABASE_URL>/rest/v1/`.
+- **Aset statis 404 di Docker**: pastikan `PUBLIC_ROOT=/app/public` (sudah di Dockerfile/compose).
+- **Halaman lambat di serverless**: pindah ke Opsi 1/2 (tidak ada cold start).
 
 ---
 
-## 📈 Performance Tips
-
-1. **Cache AI Results**
-   - Store results for 1-24 hours
-   - Reduce API calls
-
-2. **Batch Operations**
-   - Use `/full-report` instead of multiple calls
-   - Schedule during off-peak hours
-
-3. **Database Optimization**
-   - Add indexes if many rows
-   - Archive old data
-
-4. **Load Balancing**
-   - Use nginx/Apache reverse proxy
-   - Multiple Node instances
-
----
-
-## 🔄 CI/CD Pipeline
-
-### GitHub Actions Example
-
-```yaml
-name: Deploy
-
-on:
-  push:
-    branches: [main]
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
-        with:
-          node-version: '22'
-      
-      - name: Install
-        run: npm install --omit=dev
-        working-directory: nodejs
-      
-      - name: Test
-        run: npm test
-        working-directory: nodejs
-      
-      - name: Deploy to Docker Hub
-        run: |
-          docker build -t username/web-pegawai:latest .
-          docker push username/web-pegawai:latest
-```
-
----
-
-## 📞 Support
-
-- Check logs: `pm2 logs` or `docker logs`
-- Review docs: `CLOUDFLARE_AI_DOCS.md`
-- Test endpoints: `node test-cf.js`
-- API test: `node test-endpoints.js`
-
----
-
-## Version History
-
-| Version | Date | Changes |
-|---------|------|---------|
-| 1.0.0 | 2026-08-08 | Initial Cloudflare AI integration |
-
----
-
-**Status**: ✅ Production Ready  
-**Last Updated**: 2026-08-08
+**Status**: ✅ Siap produksi — pilih Opsi 1 (Docker, disarankan), Opsi 2 (PM2), atau Opsi 3 (Vercel).

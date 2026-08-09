@@ -1,17 +1,19 @@
-FROM node:20-alpine
+FROM node:22-alpine
 
 WORKDIR /app
 
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV PUBLIC_ROOT=/app/public
+
 COPY nodejs/package*.json ./
-RUN npm install --omit=dev
+RUN npm install --omit=dev && npm cache clean --force
 
 COPY nodejs/ ./
-COPY css ./css
-COPY js ./js
-COPY images ./images
-COPY fontawesome ./fontawesome
+COPY public/ ./public/
 
-ENV STATIC_ROOT=/app
 EXPOSE 3000
+
+USER node
 
 CMD ["node", "app.js"]

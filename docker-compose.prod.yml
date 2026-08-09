@@ -1,0 +1,27 @@
+# Overlay produksi: tambahkan reverse-proxy Caddy (HTTPS otomatis) di depan app.
+# Penggunaan:
+#   cp Caddyfile.example Caddyfile   # lalu ubah "contoh.com" dengan domain Anda
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+services:
+  app:
+    ports:
+      - "127.0.0.1:3000:3000"
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: pegawai_caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+volumes:
+  caddy_data:
+  caddy_config:
