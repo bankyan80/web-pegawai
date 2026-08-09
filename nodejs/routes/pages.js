@@ -9,7 +9,6 @@ const Pelatihan = require('../models/pelatihan');
 const Materi = require('../models/materi');
 const kepdata = require('../models/kepdata');
 const menuModel = require('../models/menu');
-const dashboardModel = require('../models/dashboard');
 
 const router = express.Router();
 
@@ -241,20 +240,14 @@ function isMobileUA(req) {
 }
 
 // Dashboard Pegawai Personal (mobile single page, tanpa layout desktop).
-// Data pribadi disisipkan server-side (satu round-trip) agar cepat;
-// /api/dashboard tetap ada untuk tombol "Coba Lagi".
-router.get('/dashboard', requireLogin, async (req, res, next) => {
-  const member = req.session.MEMBER;
-  let dashData = { found: false, error: true };
-  try {
-    dashData = await dashboardModel.getPersonalData(member);
-  } catch (err) {
-    console.error('DASHBOARD render:', err.message);
-  }
+// Halaman dirender instan (shell) tanpa menunggu query database;
+// data pribadi dimuat asinkron oleh browser dari /api/dashboard
+// sehingga halaman langsung tampil walaupun koneksi DB lambat/cold.
+router.get('/dashboard', requireLogin, (req, res) => {
   res.render('pages/dashboard', {
     csrf: req.session.csrfToken,
-    member,
-    dashData
+    member: req.session.MEMBER,
+    dashData: null
   });
 });
 

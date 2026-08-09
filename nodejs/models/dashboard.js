@@ -203,7 +203,7 @@ async function selByName(tab, nip, nama) {
 // 'member' adalah sesi login (role staff/pegawai).
 // Hasil di-cache per pegawai (TTL pendek) agar kunjungan berulang
 // pada instance hangat tidak mengulang query Supabase.
-const CACHE_TTL = 20000;
+const CACHE_TTL = 60000;
 const cache = {};
 
 

@@ -9,6 +9,7 @@ const crypto = require('crypto');
 const supabase = require('../config/supabase');
 const kepdata = require('../models/kepdata');
 const menuModel = require('../models/menu');
+const dashboard = require('../models/dashboard');
 
 const router = express.Router();
 
@@ -174,6 +175,7 @@ router.post('/upload/:bucket', async (req, res) => {
     const buf = Buffer.from(base64, 'base64');
     const url = await supabase.upload(bucket, filename, buf, contentType || 'application/octet-stream');
     kepdata.invalidateCache();
+    dashboard.invalidateCache();
     return res.json({ ok: true, url });
   } catch (err) {
     return res.status(500).json({ ok: false, error: err.message });
@@ -200,6 +202,7 @@ router.post('/:modul', async (req, res) => {
     const payload = await cleanBody(req.params.modul, req.body);
     const row = await supabase.insert(table, payload);
     kepdata.invalidateCache();
+    dashboard.invalidateCache();
     if (table === 'menu') menuModel.invalidateCache();
     if (table === 'pegawai' && row && row.id) {
       await logRiwayatStatus(row.id, '', row.jenis || '', '', 'Pegawai baru ditambahkan');
@@ -237,6 +240,7 @@ router.put('/:modul/:id', async (req, res) => {
     }
     const row = await supabase.update(table, req.params.id, payload);
     kepdata.invalidateCache();
+    dashboard.invalidateCache();
     if (table === 'menu') menuModel.invalidateCache();
     return res.json({ ok: true, data: row });
   } catch (err) {
@@ -265,6 +269,7 @@ router.delete('/:modul/:id', async (req, res) => {
     }
     await supabase.remove(table, req.params.id);
     kepdata.invalidateCache();
+    dashboard.invalidateCache();
     if (table === 'menu') menuModel.invalidateCache();
     return res.json({ ok: true });
   } catch (err) {

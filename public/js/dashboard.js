@@ -814,15 +814,13 @@
 
 		sheetDelegation();
 
+		// Data biasanya dimuat asinkron dari /api/dashboard agar halaman
+		// tampil instan. Bila ada data ter-sisip (DASH_DATA.found) render langsung.
 		if (window.DASH_DATA && window.DASH_DATA.found) {
 			DATA = window.DASH_DATA;
 			renderHeader();
 			renderInfo();
 			showContent();
-		} else if (window.DASH_DATA && window.DASH_DATA.error) {
-			showError();
-		} else if (window.DASH_DATA && !window.DASH_DATA.found) {
-			showNotFound();
 		} else {
 			loadData();
 		}
