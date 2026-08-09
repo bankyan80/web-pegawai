@@ -278,7 +278,8 @@
     }
     var title = modal.querySelector('.kep-modal-title');
     if (title) title.textContent = 'Edit Data';
-    modal.setAttribute('data-editing-id', record.id || '');
+    var form = modal.querySelector('.kep-form');
+    if (form) form.setAttribute('data-editing-id', record.id || '');
     Object.keys(record || {}).forEach(function (name) {
       var input = modal.querySelector('[name="' + name + '"]');
       if (input) input.value = record[name];

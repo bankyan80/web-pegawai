@@ -11,7 +11,7 @@
 		</thead>
 		<tbody>
 			<% table.rows.forEach(function (r, ri) { %>
-				<tr data-index="<%= ri %>" data-record='<%- JSON.stringify(table.records ? table.records[ri] || {} : {}) %>'>
+				<tr data-index="<%= ri %>" data-record='<%= JSON.stringify(table.records ? table.records[ri] || {} : {}) %>'>
 					<td class="kep-no"></td>
 					<% table.columns.forEach(function (c, ci) { %>
 						<td data-col="<%= ci %>"><%- c.format ? c.format(r[ci], r) : String(r[ci]) %></td>
