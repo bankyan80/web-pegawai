@@ -449,7 +449,7 @@ router.get('/profil-pegawai', async (req, res, next) => {
         { name: 'jabatan', label: 'Jabatan', type: 'select', options: D.jabatanList },
         { name: 'unit', label: 'Unit Kerja', type: 'select', options: D.unitKerja },
         { name: 'tmt', label: 'TMT', type: 'date' },
-        { name: 'status', label: 'Status', type: 'select', options: ['Aktif', 'Cuti', 'Pensiun'] },
+        { name: 'status', label: 'Status', type: 'select', options: ['Aktif', 'Cuti', 'Pensiun', 'Nonaktif'] },
         { name: 'foto', label: 'Foto (opsional)', type: 'file' }
       ]
     }

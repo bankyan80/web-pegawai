@@ -192,6 +192,30 @@
     });
   }
 
+  // Auto buka modal edit bila URL membawa ?edit=<id> (mis. dari halaman detail).
+  function autoOpenEditFromUrl() {
+    var m = /[?&]edit=(\d+)/.exec(window.location.search || '');
+    if (!m) return;
+    var id = m[1];
+    var tbl = document.getElementById('tblPegawai');
+    if (!tbl) return;
+    var rows = Array.prototype.slice.call(tbl.querySelectorAll('tbody tr'));
+    for (var i = 0; i < rows.length; i++) {
+      var rec = {};
+      try { rec = JSON.parse(rows[i].getAttribute('data-record') || '{}'); } catch (e) {}
+      if (String(rec.id) === id) {
+        var btn = rows[i].querySelector('.kep-act[data-act="edit"]');
+        if (btn) {
+          openEditModal(btn, rec);
+          if (history && history.replaceState) {
+            history.replaceState({}, '', window.location.pathname + window.location.hash);
+          }
+        }
+        break;
+      }
+    }
+  }
+
   document.addEventListener('input', function (e) {
     if (e.target.classList.contains('kep-search-input')) {
       var tid = e.target.getAttribute('data-table');
@@ -282,7 +306,19 @@
     if (form) form.setAttribute('data-editing-id', record.id || '');
     Object.keys(record || {}).forEach(function (name) {
       var input = modal.querySelector('[name="' + name + '"]');
-      if (input) input.value = record[name];
+      if (!input || input.type === 'file') return;
+      var val = record[name];
+      if (val === null || val === undefined) val = '';
+      input.value = val;
+      // Bila <select> tidak punya opsi yang cocok, pertahankan nilai lama agar
+      // tidak ikut terhapus saat disimpan (data referensi bisa saja berbeda).
+      if (input.tagName === 'SELECT' && String(val) !== '' && input.value !== String(val)) {
+        var opt = document.createElement('option');
+        opt.value = String(val);
+        opt.textContent = String(val) + ' (data lama)';
+        input.appendChild(opt);
+        input.value = String(val);
+      }
     });
     syncSearchableInputs(modal);
     populateBatchForEdit(modal, record);
@@ -818,6 +854,10 @@
 
   document.addEventListener('DOMContentLoaded', function () {
     initTables();
+    autoOpenEditFromUrl();
   });
-  if (document.readyState !== 'loading') initTables();
+  if (document.readyState !== 'loading') {
+    initTables();
+    autoOpenEditFromUrl();
+  }
 })();
