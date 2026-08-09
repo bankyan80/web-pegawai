@@ -72,6 +72,24 @@ function renderPage(res, req, view, locals) {
   });
 }
 
+// Pegawai (role staff) di HP selalu diarahkan ke Dashboard Personal (Card Box)
+// agar mudah digunakan; admin/manager serta staff yang memilih "Tampilan Desktop"
+// (desktop=1) tetap memakai tampilan desktop seperti biasa.
+router.use((req, res, next) => {
+  const member = req.session.MEMBER;
+  if (
+    req.method === 'GET' &&
+    member &&
+    member.role === 'staff' &&
+    req.query.desktop !== '1' &&
+    req.path !== '/dashboard' &&
+    isMobileUA(req)
+  ) {
+    return res.redirect('/dashboard');
+  }
+  next();
+});
+
 router.get('/', async (req, res, next) => {
   const hal = req.query.hal || 'home';
   const view = routes[hal] || 'home';
@@ -105,12 +123,6 @@ router.get('/', async (req, res, next) => {
   }
   if (need === 'admin' && (!member || member.role !== 'administrator')) {
     return renderPage(res, req, 'denied', base);
-  }
-
-  // Pegawai (role staff) di perangkat mobile diarahkan ke Dashboard Personal
-  // single page. Desktop & admin/manager tetap memakai tampilan yang ada.
-  if (view === 'home' && member && member.role === 'staff' && req.query.desktop !== '1' && isMobileUA(req)) {
-    return res.redirect('/dashboard');
   }
 
   const pegawaiModel = new Pegawai();
