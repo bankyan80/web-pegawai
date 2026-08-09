@@ -758,8 +758,15 @@
 
 	/* ---------------- Bottom sheet ---------------- */
 
+	// Dukungan deep-link: /dashboard#profil langsung membuka Card Box-nya.
+	function openSheetByHash() {
+		var h = (location.hash || '').replace(/^#/, '');
+		if (h && RENDERERS[h] && DATA) openSheet(h);
+	}
+
 	function openSheet(key) {
 		CUR_SHEET = key;
+		try { if (location.hash !== '#' + key) history.replaceState(null, '', '#' + key); } catch (e) {}
 		var sheet = $('#dashSheet');
 		$('#sheetTitle').textContent = SHEET_TITLES[key] || 'Detail';
 		$('#sheetBody').innerHTML = '<div class="dash-empty-sm"><i class="fas fa-circle-notch fa-spin"></i><div>Memuat…</div></div>';
@@ -834,6 +841,7 @@
 		var sheet = $('#dashSheet');
 		sheet.classList.remove('open');
 		$('#dashBackdrop').hidden = true;
+		try { if (location.hash) history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
 		setTimeout(function () { sheet.hidden = true; }, 300);
 	}
 
@@ -903,7 +911,7 @@
 			done = true;
 			showError();
 		}, 20000);
-		fetchJson('/api/dashboard', 4).then(function (json) {
+		return fetchJson('/api/dashboard', 4).then(function (json) {
 			if (done) return;
 			done = true;
 			clearTimeout(timer);
@@ -994,6 +1002,7 @@
 		$('#dashBackdrop').addEventListener('click', closeSheet);
 		$('#dashRetry').addEventListener('click', loadData);
 		$('#sheetRefresh').addEventListener('click', refreshCurrentSheet);
+		window.addEventListener('hashchange', openSheetByHash);
 
 		sheetDelegation();
 
@@ -1008,6 +1017,7 @@
 			renderInfo();
 			showContent();
 			persistState();
+			openSheetByHash();
 			return;
 		}
 		if (saved) {
@@ -1016,6 +1026,7 @@
 			renderHeader();
 			renderInfo();
 			showContent();
+			openSheetByHash();
 			refreshBase().then(function (ok) {
 				if (!ok) return;
 				persistState();
@@ -1023,6 +1034,6 @@
 			});
 			return;
 		}
-		loadData();
+		loadData().then(function () { openSheetByHash(); });
 	});
 })();
