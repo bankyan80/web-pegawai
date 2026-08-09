@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+	<title>Dashboard Pegawai</title>
+	<meta name="theme-color" content="#4338ca">
+	<meta name="mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<link rel="stylesheet" href="/css/bootstrap.min.css">
+	<link rel="stylesheet" href="/fontawesome/css/all.min.css">
+	<link rel="stylesheet" href="/css/dashboard.css">
+</head>
+
+<body>
+	<div id="dash-app">
+
+		<header class="dash-header" id="dashHeader">
+			<div class="dash-header-top">
+				<div class="dash-header-avatar" id="dashAvatar">
+					<img src="/images/no_photo.png" alt="Foto" />
+				</div>
+				<div class="dash-header-info">
+					<div class="dash-header-name" id="dashName">…</div>
+					<div class="dash-header-sub" id="dashNip">…</div>
+					<div class="dash-header-sub" id="dashJabatan">…</div>
+					<div class="dash-header-school" id="dashSekolah">…</div>
+				</div>
+				<div class="dash-header-menu" id="dashMenuBtn"><i class="fas fa-ellipsis-h"></i></div>
+			</div>
+		</header>
+
+		<div class="dash-menu-pop" id="dashMenuPop" hidden>
+			<a href="/?hal=home&desktop=1"><i class="fas fa-desktop"></i> Tampilan Desktop</a>
+			<a href="/logout"><i class="fas fa-sign-out-alt"></i> Logout</a>
+		</div>
+
+		<main id="dashMain">
+			<div id="dashError" class="dash-empty" hidden>
+				<i class="fas fa-exclamation-triangle"></i>
+				<p>Data gagal dimuat.<br>Silakan coba lagi.</p>
+				<button class="dash-btn" id="dashRetry"><i class="fas fa-sync-alt"></i> Coba Lagi</button>
+			</div>
+
+			<div id="dashSkeleton">
+				<div class="sk-header"></div>
+				<div class="sk-grid">
+					<div class="sk-card"></div><div class="sk-card"></div>
+					<div class="sk-card"></div><div class="sk-card"></div>
+					<div class="sk-card"></div><div class="sk-card"></div>
+					<div class="sk-card"></div><div class="sk-card"></div>
+					<div class="sk-card"></div><div class="sk-card"></div>
+				</div>
+			</div>
+
+			<div id="dashContent" hidden>
+				<section id="dashInfo" class="dash-grid dash-grid-2"></section>
+
+				<section class="dash-group">
+					<h2 class="dash-group-title"><i class="fas fa-id-card"></i> PROFIL &amp; STATUS</h2>
+					<div class="dash-grid dash-grid-2">
+						<button type="button" class="dash-card" data-sheet="profil">
+							<i class="fas fa-user fa-lg dash-card-icon"></i>
+							<span class="dash-card-title">Profil Pegawai</span>
+							<span class="dash-card-desc">Data personal &amp; identitas Anda</span>
+						</button>
+						<button type="button" class="dash-card" data-sheet="status">
+							<i class="fas fa-id-badge fa-lg dash-card-icon"></i>
+							<span class="dash-card-title">Status Kepegawaian</span>
+							<span class="dash-card-desc">Status, NIP &amp; unit kerja</span>
+						</button>
+					</div>
+				</section>
+
+				<section class="dash-group">
+					<h2 class="dash-group-title"><i class="fas fa-briefcase"></i> LAYANAN KEPEGAWAIAN</h2>
+					<div class="dash-grid dash-grid-2">
+						<button type="button" class="dash-card" data-sheet="pppk">
+							<i class="fas fa-file-contract fa-lg dash-card-icon"></i>
+							<span class="dash-card-title">Periode PPPK</span>
+							<span class="dash-card-desc">Masa kontrak &amp; sisa periode</span>
+						</button>
+						<button type="button" class="dash-card" data-sheet="pangkat">
+							<i class="fas fa-chevron-circle-up fa-lg dash-card-icon"></i>
+							<span class="dash-card-title">Pangkat</span>
+							<span class="dash-card-desc">Pangkat/golongan &amp; riwayat</span>
+						</button>
+						<button type="button" class="dash-card" data-sheet="kgb">
+							<i class="fas fa-money-bill-wave fa-lg dash-card-icon"></i>
+							<span class="dash-card-title">KGB</span>
+							<span class="dash-card-desc">Kenalkan gaji berkala</span>
+						</button>
+						<button type="button" class="dash-card" data-sheet="mutasi">
+							<i class="fas fa-arrows-alt-h fa-lg dash-card-icon"></i>
+							<span class="dash-card-title">Mutasi</span>
+							<span class="dash-card-desc">Riwayat perpindahan tugas</span>
+						</button>
+						<button type="button" class="dash-card" data-sheet="jabatan">
+							<i class="fas fa-tasks fa-lg dash-card-icon"></i>
+							<span class="dash-card-title">Jabatan &amp; Penugasan</span>
+							<span class="dash-card-desc">Jabatan utama &amp; tambahan</span>
+						</button>
+						<button type="button" class="dash-card" data-sheet="sertifikasi">
+							<i class="fas fa-certificate fa-lg dash-card-icon"></i>
+							<span class="dash-card-title">Sertifikasi &amp; Tunjangan</span>
+							<span class="dash-card-desc">Sertifikat &amp; tunjangan profesi</span>
+						</button>
+						<button type="button" class="dash-card" data-sheet="cuti">
+							<i class="fas fa-plane fa-lg dash-card-icon"></i>
+							<span class="dash-card-title">Cuti</span>
+							<span class="dash-card-desc">Sisa &amp; riwayat cuti</span>
+						</button>
+						<button type="button" class="dash-card" data-sheet="bup">
+							<i class="fas fa-hourglass-half fa-lg dash-card-icon"></i>
+							<span class="dash-card-title">BUP / Pensiun</span>
+							<span class="dash-card-desc">Perkiraan batas usia pensiun</span>
+						</button>
+						<button type="button" class="dash-card" data-sheet="presensi">
+							<i class="fas fa-clock fa-lg dash-card-icon"></i>
+							<span class="dash-card-title">Arsip Presensi</span>
+							<span class="dash-card-desc">Rekap kehadiran &amp; file</span>
+						</button>
+						<button type="button" class="dash-card" data-sheet="arsip">
+							<i class="fas fa-archive fa-lg dash-card-icon"></i>
+							<span class="dash-card-title">Arsip Kepegawaian</span>
+							<span class="dash-card-desc">Dokumen pribadi Anda</span>
+						</button>
+						<button type="button" class="dash-card" data-sheet="surat">
+							<i class="fas fa-envelope-open-text fa-lg dash-card-icon"></i>
+							<span class="dash-card-title">Surat Kepegawaian</span>
+							<span class="dash-card-desc">Surat keterangan &amp; SK</span>
+						</button>
+					</div>
+				</section>
+
+				<footer class="dash-foot">© Timker Kepegawaian</footer>
+			</div>
+		</main>
+	</div>
+
+	<div class="dash-backdrop" id="dashBackdrop" hidden></div>
+
+	<section class="dash-sheet" id="dashSheet" hidden>
+		<div class="dash-sheet-handle"></div>
+		<div class="dash-sheet-head">
+			<h3 class="dash-sheet-title" id="sheetTitle">Detail</h3>
+			<button type="button" class="dash-sheet-close" id="sheetClose"><i class="fas fa-times"></i></button>
+		</div>
+		<div class="dash-sheet-body" id="sheetBody"></div>
+	</section>
+
+	<script>
+		window.DASH_CFG = {
+			csrf: '<%= csrf %>'
+		};
+	</script>
+	<script src="/js/jquery.min.js"></script>
+	<script src="/js/dashboard.js"></script>
+</body>
+
+</html>

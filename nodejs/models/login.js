@@ -50,6 +50,7 @@ class Login {
       email: p.email || '',
       foto: p.foto || '',
       unit: p.sekolah || p.unit || '',
+      pegawai_id: p.id,
       loginAs: 'pegawai'
     };
   }

@@ -34,7 +34,8 @@ router.post('/login', async (req, res) => {
         role: rs.role,
         email: rs.email,
         foto: rs.foto,
-        unit: rs.unit
+        unit: rs.unit,
+        pegawai_id: rs.pegawai_id || null
       };
       res.redirect('/?hal=home');
     } else {

@@ -106,6 +106,12 @@ router.get('/', async (req, res, next) => {
     return renderPage(res, req, 'denied', base);
   }
 
+  // Pegawai (role staff) di perangkat mobile diarahkan ke Dashboard Personal
+  // single page. Desktop & admin/manager tetap memakai tampilan yang ada.
+  if (view === 'home' && member && member.role === 'staff' && req.query.desktop !== '1' && isMobileUA(req)) {
+    return res.redirect('/dashboard');
+  }
+
   const pegawaiModel = new Pegawai();
   const loginModel = new Login();
   const gajiModel = new Gaji();
@@ -224,6 +230,21 @@ router.get('/', async (req, res, next) => {
 router.get('/logout', (req, res) => {
   req.session = null;
   res.redirect('/?hal=home');
+});
+
+// Deteksi perangkat mobile lewat user-agent (dipakai untuk mengarahkan
+// pegawai ke Dashboard Personal single page di HP, tanpa mengubah desktop).
+function isMobileUA(req) {
+  const ua = String(req.get('user-agent') || '');
+  return /Android|iPhone|iPod|Mobile|Opera Mini|IEMobile|BlackBerry|Windows Phone/i.test(ua);
+}
+
+// Dashboard Pegawai Personal (mobile single page, tanpa layout desktop).
+router.get('/dashboard', requireLogin, (req, res) => {
+  res.render('pages/dashboard', {
+    csrf: req.session.csrfToken,
+    member: req.session.MEMBER
+  });
 });
 
 async function renderModul(res, req, view, cfg) {
