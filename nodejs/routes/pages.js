@@ -329,6 +329,13 @@ function isPppk(jenis) {
 function isPppkParuhWaktu(jenis) {
   return /paruh waktu/i.test(String(jenis || ''));
 }
+function segJenis(j) {
+  const s = String(j || '');
+  if (isPppkParuhWaktu(s)) return 'PPPK Paruh Waktu';
+  if (isPppk(s)) return 'PPPK';
+  if (/^pns$/i.test(s.trim())) return 'PNS';
+  return 'Non-ASN';
+}
 
 function requireLogin(req, res, next) {
   if (!req.session.MEMBER) {
@@ -413,7 +420,7 @@ router.get('/profil-pegawai', async (req, res, next) => {
       { label: 'PNS', value: countBy(D.pegawai, 'jenis', 'PNS'), icon: 'fa-user-tie', color: 'violet' },
       { label: 'PPPK', value: D.pegawai.filter((x) => isPppk(x.jenis) && !isPppkParuhWaktu(x.jenis)).length, icon: 'fa-user-graduate', color: 'green' },
       { label: 'PPPK Paruh Waktu', value: D.pegawai.filter((x) => isPppk(x.jenis) && isPppkParuhWaktu(x.jenis)).length, icon: 'fa-user-clock', color: 'cyan' },
-      { label: 'Honorer', value: countBy(D.pegawai, 'jenis', 'Honorer'), icon: 'fa-user-cog', color: 'amber' }
+      { label: 'Honorer', value: D.pegawai.filter((x) => segJenis(x.jenis) === 'Non-ASN').length, icon: 'fa-user-cog', color: 'amber' }
     ],
     toolbar: {
       search: { table: 'tblPegawai', placeholder: 'Cari nama/NIP' },
@@ -1790,14 +1797,6 @@ router.get('/status-kepegawaian', async (req, res, next) => {
     list = list.filter((p) => String(p.unit || '') === unit);
   }
 
-  function seg(j) {
-    const s = String(j || '');
-    if (isPppkParuhWaktu(s)) return 'PPPK Paruh Waktu';
-    if (isPppk(s)) return 'PPPK';
-    if (/^pns$/i.test(s.trim())) return 'PNS';
-    return 'Non-ASN';
-  }
-
   function statusBlock(id, rows) {
     return {
       toolbar: {
@@ -1839,10 +1838,10 @@ router.get('/status-kepegawaian', async (req, res, next) => {
     activeTab,
     tabs: [
       Object.assign({ id: 'tabStsAll', label: 'Semua Pegawai', icon: 'fa-users' }, statusBlock('tblStsAll', list)),
-      Object.assign({ id: 'tabStsPns', label: 'PNS', icon: 'fa-id-badge' }, statusBlock('tblStsPns', list.filter((p) => seg(p.jenis) === 'PNS'))),
-      Object.assign({ id: 'tabStsPppk', label: 'PPPK', icon: 'fa-user-graduate' }, statusBlock('tblStsPppk', list.filter((p) => seg(p.jenis) === 'PPPK'))),
-      Object.assign({ id: 'tabStsPw', label: 'PPPK Paruh Waktu', icon: 'fa-user-clock' }, statusBlock('tblStsPw', list.filter((p) => seg(p.jenis) === 'PPPK Paruh Waktu'))),
-      Object.assign({ id: 'tabStsNon', label: 'Non-ASN', icon: 'fa-user' }, statusBlock('tblStsNon', list.filter((p) => seg(p.jenis) === 'Non-ASN')))
+      Object.assign({ id: 'tabStsPns', label: 'PNS', icon: 'fa-id-badge' }, statusBlock('tblStsPns', list.filter((p) => segJenis(p.jenis) === 'PNS'))),
+      Object.assign({ id: 'tabStsPppk', label: 'PPPK', icon: 'fa-user-graduate' }, statusBlock('tblStsPppk', list.filter((p) => segJenis(p.jenis) === 'PPPK'))),
+      Object.assign({ id: 'tabStsPw', label: 'PPPK Paruh Waktu', icon: 'fa-user-clock' }, statusBlock('tblStsPw', list.filter((p) => segJenis(p.jenis) === 'PPPK Paruh Waktu'))),
+      Object.assign({ id: 'tabStsNon', label: 'Non-ASN', icon: 'fa-user' }, statusBlock('tblStsNon', list.filter((p) => segJenis(p.jenis) === 'Non-ASN')))
     ]
   };
   return renderModul(res, req, 'kep_tabs', cfg);
