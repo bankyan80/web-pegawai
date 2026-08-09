@@ -37,6 +37,10 @@
 			if (!raw) return null;
 			var s = JSON.parse(raw);
 			if (!s || s.v !== 1 || !s.data || !s.data.found) return null;
+			// Pastikan data tersimpan milik pegawai yang sedang login,
+			// agar tidak menampilkan data akun lain di perangkat yang sama.
+			var me = window.DASH_ME || {};
+			if (me.pegawai_id && String(s.data.pegawai_id) !== String(me.pegawai_id)) return null;
 			return s;
 		} catch (e) { return null; }
 	}

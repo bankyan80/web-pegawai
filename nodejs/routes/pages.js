@@ -9,6 +9,7 @@ const Pelatihan = require('../models/pelatihan');
 const Materi = require('../models/materi');
 const kepdata = require('../models/kepdata');
 const menuModel = require('../models/menu');
+const dashboard = require('../models/dashboard');
 
 const router = express.Router();
 
@@ -243,12 +244,27 @@ function isMobileUA(req) {
 // Halaman dirender instan (shell) tanpa menunggu query database;
 // data pribadi dimuat asinkron oleh browser dari /api/dashboard
 // sehingga halaman langsung tampil walaupun koneksi DB lambat/cold.
-router.get('/dashboard', requireLogin, (req, res) => {
+// Bila data dasar dapat diambil cepat (< 2.5s), disisipkan langsung ke
+// halaman agar perangkat seluler langsung menampilkan data tanpa menunggu
+// request tambahan (perbaikan "memuat data terus").
+router.get('/dashboard', requireLogin, async (req, res) => {
   const member = req.session.MEMBER;
+  let dashData = null;
+  if (member && member.pegawai_id) {
+    try {
+      dashData = await Promise.race([
+        dashboard.getBase(member),
+        new Promise((resolve) => setTimeout(() => resolve(null), 2500))
+      ]);
+    } catch (err) {
+      console.error('DASH INLINE:', err.message);
+      dashData = null;
+    }
+  }
   res.render('pages/dashboard', {
     csrf: req.session.csrfToken,
     member,
-    dashData: null,
+    dashData,
     dashMe: { username: (member && member.username) || '', pegawai_id: (member && member.pegawai_id) || null }
   });
 });
@@ -431,18 +447,25 @@ router.use(['/kelola-user', '/kelola-menu'], requireAdmin);
 
 router.get('/profil-pegawai', async (req, res, next) => {
   const D = await kepdata.getKepData(['pegawai', 'unitKerja', 'jabatanList', 'pangkatList', 'golonganList', 'jenisPegawaiList']);
-  const rows = D.pegawai.map((p) => [p.nip, p.nama, p.jenis, p.jabatan, p.unit, p.status]);
-  const records = D.pegawai.map((p) => ({
+  const member = req.session.MEMBER;
+  const isStaff = member && member.role === 'staff';
+  // Pegawai biasa (staff) hanya boleh melihat profil dirinya sendiri,
+  // bukan seluruh data pegawai (privasi).
+  const pegawai = isStaff
+    ? D.pegawai.filter((p) => member.pegawai_id && String(p.id) === String(member.pegawai_id))
+    : D.pegawai;
+  const rows = pegawai.map((p) => [p.nip, p.nama, p.jenis, p.jabatan, p.unit, p.status]);
+  const records = pegawai.map((p) => ({
     id: p.id, nip: p.nip, nik: p.nik, nama: p.nama, ttl: p.ttl, jk: p.jk, alamat: p.alamat,
     hp: p.hp, email: p.email, jenis: p.jenis, pangkat: p.pangkat, golongan: p.golongan,
     jabatan: p.jabatan, unit: p.unit, tmt: p.tmt, status: p.status
   }));
   const cfg = {
     breadcrumb: ['Master Data', 'Profil Pegawai'],
-    title: 'Profil Pegawai',
-    desc: 'Kelola dan lihat data profil seluruh pegawai',
-    primaryBtn: { label: 'Tambah Pegawai', modal: 'modalPegawai', icon: 'fa-user-plus' },
-    stats: [
+    title: isStaff && records.length ? records[0].nama : 'Profil Pegawai',
+    desc: isStaff ? 'Data profil Anda' : 'Kelola dan lihat data profil seluruh pegawai',
+    primaryBtn: isStaff ? null : { label: 'Tambah Pegawai', modal: 'modalPegawai', icon: 'fa-user-plus' },
+    stats: isStaff ? null : [
       { label: 'Total Pegawai', value: D.pegawai.length, icon: 'fa-users', color: 'blue' },
       { label: 'PNS', value: countBy(D.pegawai, 'jenis', 'PNS'), icon: 'fa-user-tie', color: 'violet' },
       { label: 'PPPK', value: D.pegawai.filter((x) => isPppk(x.jenis) && !isPppkParuhWaktu(x.jenis)).length, icon: 'fa-user-graduate', color: 'green' },
@@ -471,13 +494,15 @@ router.get('/profil-pegawai', async (req, res, next) => {
       ],
       rows,
       records,
-      actions: [
-        { act: 'detail', icon: 'fa-eye', label: 'Lihat' },
-        { act: 'edit', icon: 'fa-edit', label: 'Edit', modal: 'modalPegawai' },
-        { act: 'hapus', icon: 'fa-trash', label: 'Hapus' }
-      ]
+      actions: isStaff
+        ? [{ act: 'detail', icon: 'fa-eye', label: 'Lihat' }]
+        : [
+            { act: 'detail', icon: 'fa-eye', label: 'Lihat' },
+            { act: 'edit', icon: 'fa-edit', label: 'Edit', modal: 'modalPegawai' },
+            { act: 'hapus', icon: 'fa-trash', label: 'Hapus' }
+          ]
     },
-    modal: {
+    modal: isStaff ? null : {
       id: 'modalPegawai',
       title: 'Tambah Pegawai',
       table: 'tblPegawai',
@@ -505,8 +530,17 @@ router.get('/profil-pegawai', async (req, res, next) => {
 });
 
 router.get('/profil-pegawai/detail/:id', async (req, res, next) => {
+  const member = req.session.MEMBER;
+  const isStaff = member && member.role === 'staff';
+  let id = parseInt(req.params.id, 10);
+  // Pegawai biasa (staff) hanya boleh membuka profil dirinya sendiri.
+  if (isStaff) {
+    const own = Number(member.pegawai_id);
+    if (!own) return res.redirect('/?hal=home');
+    if (id !== own) return res.redirect('/profil-pegawai/detail/' + own);
+  }
   const D = await kepdata.getKepData(['detailPegawai']);
-  const p = D.detailPegawai(parseInt(req.params.id, 10));
+  const p = D.detailPegawai(id);
   if (!p) {
     return res.redirect('/profil-pegawai');
   }
@@ -514,7 +548,8 @@ router.get('/profil-pegawai/detail/:id', async (req, res, next) => {
     breadcrumb: ['Master Data', 'Profil Pegawai', 'Detail'],
     title: p.nama,
     desc: 'NIP ' + p.nip + ' — ' + p.unit,
-    p
+    p,
+    canManage: !isStaff
   };
   return renderModul(res, req, 'kep_profil_detail', cfg);
 });

@@ -61,10 +61,12 @@ app.use('/sw.js', express.static(path.join(publicRoot, 'sw.js')));
 app.use('/favicon.ico', express.static(path.join(publicRoot, 'favicon.ico'), { setHeaders: staticCache }));
 
 // Muat menu navbar dari DB (di-cache) dan saring sesuai role member.
-// Endpoint /api tidak memakai menu navbar, jadi dilewati agar respons API
-// lebih cepat (menghindari query DB tambahan, penyebab 504 saat cold start).
+// Endpoint /api dan halaman /dashboard (shell mobile) tidak memakai menu
+// navbar, jadi dilewati agar respons lebih cepat (menghindari query DB
+// tambahan, penyebab 504 saat cold start).
 app.use(async (req, res, next) => {
-  if (String(req.path).startsWith('/api/')) return next();
+  const p = String(req.path);
+  if (p.startsWith('/api/') || p === '/dashboard') return next();
   try {
     const rows = await menuModel.all();
     res.locals.menus = menuModel.forRole(rows, req.session.MEMBER);
