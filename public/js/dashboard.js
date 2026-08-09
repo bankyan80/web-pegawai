@@ -108,8 +108,25 @@
 		}).then(function (res) { return res.json(); });
 	}
 
-	function fetchJson(url) {
-		return fetch(url, { headers: { 'Accept': 'application/json' } }).then(function (res) { return res.json(); });
+	// Fetch JSON dengan retry otomatis untuk 5xx/504 (mis. Supabase/Vercel
+	// sesaat lambat saat cold start). Upaya terakhir tetap mengembalikan JSON.
+	function fetchJson(url, tries) {
+		var maxTries = tries || 3;
+		function delay(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+		function attempt(n) {
+			return fetch(url, { headers: { 'Accept': 'application/json' } })
+				.then(function (res) {
+					if (res.status >= 500 && n < maxTries) {
+						return delay(600 * n).then(function () { return attempt(n + 1); });
+					}
+					return res.json().catch(function () { return { ok: false, error: 'HTTP ' + res.status }; });
+				})
+				.catch(function (err) {
+					if (n < maxTries) return delay(600 * n).then(function () { return attempt(n + 1); });
+					throw err;
+				});
+		}
+		return attempt(1);
 	}
 
 	function refreshBase() {
@@ -885,35 +902,29 @@
 			if (done) return;
 			done = true;
 			showError();
-		}, 15000);
-		fetch('/api/dashboard', { headers: { 'Accept': 'application/json' } })
-			.then(function (res) {
-				if (!res.ok) throw new Error('HTTP ' + res.status);
-				return res.json();
-			})
-			.then(function (json) {
-				if (done) return;
-				done = true;
-				clearTimeout(timer);
-				if (!json.ok || !json.data) throw new Error(json.error || 'Gagal memuat data');
-				DATA = json.data;
-				if (!DATA.found) {
-					showNotFound();
-					return;
-				}
-				hydrateCache();
-				persistState();
-				renderHeader();
-				renderInfo();
-				showContent();
-			})
-			.catch(function (err) {
-				if (done) return;
-				done = true;
-				clearTimeout(timer);
-				console.error('Dashboard load:', err);
-				showError();
-			});
+		}, 20000);
+		fetchJson('/api/dashboard', 4).then(function (json) {
+			if (done) return;
+			done = true;
+			clearTimeout(timer);
+			if (!json.ok || !json.data) throw new Error(json.error || 'Gagal memuat data');
+			DATA = json.data;
+			if (!DATA.found) {
+				showNotFound();
+				return;
+			}
+			hydrateCache();
+			persistState();
+			renderHeader();
+			renderInfo();
+			showContent();
+		}).catch(function (err) {
+			if (done) return;
+			done = true;
+			clearTimeout(timer);
+			console.error('Dashboard load:', err);
+			showError();
+		});
 	}
 
 	function sheetDelegation() {
