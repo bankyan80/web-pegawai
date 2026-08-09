@@ -53,6 +53,13 @@ Prasyarat: SSH key sudah terpasang (`ssh-copy-id`), `nodejs/.env` ada di server
 (untuk `-Prod` juga `Caddyfile`). Sekali saja sediakan file tersebut di VPS —
 script tidak akan menimpanya.
 
+Untuk menyiapkan VPS baru secara otomatis (install Docker, unggah `nodejs/.env`
+dari lokal, tambah `SESSION_SECRET`, buka port firewall, siapkan `Caddyfile`):
+```powershell
+.\scripts\setup-vps.ps1 -Vps root@203.0.113.5
+.\scripts\setup-vps.ps1 -Vps root@203.0.113.5 -Caddy -Domain webpegawai.com
+```
+
 ### Log
 ```bash
 docker logs -f pegawai_web
