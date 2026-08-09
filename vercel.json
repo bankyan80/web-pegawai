@@ -19,6 +19,16 @@
       }
     }
   ],
+  "headers": [
+    {
+      "source": "/sw.js",
+      "headers": [{ "key": "Cache-Control", "value": "no-cache, must-revalidate" }]
+    },
+    {
+      "source": "/js/kep.js",
+      "headers": [{ "key": "Cache-Control", "value": "no-cache, must-revalidate" }]
+    }
+  ],
   "routes": [
     { "src": "/(.*)", "dest": "api/index.js" }
   ]

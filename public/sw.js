@@ -1,4 +1,4 @@
-const CACHE = 'timker-v4';
+const CACHE = 'timker-v5';
 const CORE = [
   '/css/bootstrap.min.css',
   '/css/theme.css',
@@ -73,18 +73,22 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Aset statis: cache dulu, bila tidak ada ambil dari jaringan lalu simpan.
+  // Aset statis: sajikan dari cache bila ada, namun selalu validasi ulang dari
+  // jaringan di latar belakang agar pembaruan kode langsung terpakai pada
+  // kunjungan berikutnya (stale-while-revalidate).
   event.respondWith(
-    caches.match(req)
-      .then((cached) => {
-        if (cached) return cached;
-        return fetch(req).then((res) => {
+    caches.match(req).then(function (cached) {
+      var network = fetch(req)
+        .then(function (res) {
           if (res && res.status === 200) {
             cachePut(CACHE, req, res.clone());
           }
           return res;
+        })
+        .catch(function () {
+          return cached || OFFLINE_ASSET;
         });
-      })
-      .catch(() => OFFLINE_ASSET)
+      return cached || network;
+    })
   );
 });
