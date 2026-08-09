@@ -48,12 +48,15 @@ app.use((req, res, next) => {
 });
 
 const publicRoot = process.env.PUBLIC_ROOT || path.join(__dirname, '..', 'public');
-app.use('/css', express.static(path.join(publicRoot, 'css')));
-app.use('/js', express.static(path.join(publicRoot, 'js')));
-app.use('/images', express.static(path.join(publicRoot, 'images')));
-app.use('/fontawesome', express.static(path.join(publicRoot, 'fontawesome')));
-app.use('/icons', express.static(path.join(publicRoot, 'icons')));
-app.use('/manifest.webmanifest', express.static(path.join(publicRoot, 'manifest.webmanifest'), { setHeaders: (res) => res.setHeader('Content-Type', 'application/manifest+json') }));
+const staticCache = (res) => {
+  res.setHeader('Cache-Control', 'public, max-age=3600, stale-while-revalidate=604800');
+};
+app.use('/css', express.static(path.join(publicRoot, 'css'), { setHeaders: staticCache }));
+app.use('/js', express.static(path.join(publicRoot, 'js'), { setHeaders: staticCache }));
+app.use('/images', express.static(path.join(publicRoot, 'images'), { setHeaders: staticCache }));
+app.use('/fontawesome', express.static(path.join(publicRoot, 'fontawesome'), { setHeaders: staticCache }));
+app.use('/icons', express.static(path.join(publicRoot, 'icons'), { setHeaders: staticCache }));
+app.use('/manifest.webmanifest', express.static(path.join(publicRoot, 'manifest.webmanifest'), { setHeaders: (res) => { staticCache(res); res.setHeader('Content-Type', 'application/manifest+json'); } }));
 app.use('/sw.js', express.static(path.join(publicRoot, 'sw.js')));
 
 // Muat menu navbar dari DB (di-cache) dan saring sesuai role member.

@@ -1,12 +1,14 @@
-const CACHE = 'timker-v5';
+const CACHE = 'timker-v6';
 const CORE = [
   '/css/bootstrap.min.css',
   '/css/theme.css',
-  '/fontawesome/css/all.css',
+  '/css/dashboard.css',
+  '/fontawesome/css/all.min.css',
   '/js/jquery.min.js',
   '/js/popper.min.js',
   '/js/bootstrap.min.js',
   '/js/kep.js',
+  '/js/dashboard.js',
   '/images/logokab.png',
   '/images/no_photo.png',
   '/icons/icon-192.png',
