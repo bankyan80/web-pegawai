@@ -8,13 +8,46 @@
 
 	var DATA = null;
 	var CACHE = {};            // cache per Card (dimuat malas / lazy)
-	var LOADING = {};          // request yang sedang berjalan per Card
+	var PENDING = {};          // promise per Card yang sedang dimuat (dedupe request)
 	var SD = null;             // data bagian yang sedang terbuka
 	var BASE_SHEETS = { profil: 1, status: 1, pppk: 1 };
 	var PRES_FILTER = { tahun: String(new Date().getFullYear()) };
 	var ARSIP_FILTER = { q: '', kat: '' };
 	var CUR_SHEET = '';
 	var UPLOADED = {};
+
+	// Cache persisten per-akun (sessionStorage): bertahan meski halaman
+	// dimuat ulang dalam sesi yang sama, jadi Card Box tidak perlu memuat
+	// data berulang. Kunci memakai username agar tidak bocor antar akun.
+	function storeKey() {
+		var u = (window.DASH_ME && window.DASH_ME.username) || '';
+		return 'dash_' + (u || 'anon');
+	}
+
+	function persistState() {
+		if (!DATA || !DATA.found) return;
+		try {
+			sessionStorage.setItem(storeKey(), JSON.stringify({ v: 1, data: DATA, parts: CACHE }));
+		} catch (e) { /* kuota penuh / mode privat: biarkan tanpa cache */ }
+	}
+
+	function loadPersisted() {
+		try {
+			var raw = sessionStorage.getItem(storeKey());
+			if (!raw) return null;
+			var s = JSON.parse(raw);
+			if (!s || s.v !== 1 || !s.data || !s.data.found) return null;
+			return s;
+		} catch (e) { return null; }
+	}
+
+	// Gabungkan cache bagian yang tersimpan bila pegawai yang sama.
+	function hydrateCache() {
+		var s = loadPersisted();
+		if (!s || !s.parts || !s.data) return;
+		if (String(s.data.pegawai_id) !== String(DATA.pegawai_id)) return;
+		Object.keys(s.parts).forEach(function (k) { CACHE[k] = s.parts[k]; });
+	}
 
 	var $ = function (sel) { return document.querySelector(sel); };
 
@@ -81,22 +114,27 @@
 
 	function refreshBase() {
 		return fetchJson('/api/dashboard').then(function (json) {
-			if (json.ok && json.data && json.data.found) { DATA = json.data; renderHeader(); renderInfo(); return true; }
+			if (json.ok && json.data && json.data.found) {
+				DATA = json.data;
+				persistState();
+				renderHeader();
+				renderInfo();
+				return true;
+			}
 			return false;
 		});
 	}
 
 	function refreshSheetData(key) {
 		delete CACHE[key];
-		if (LOADING[key]) return Promise.resolve(false);
-		LOADING[key] = true;
+		PENDING[key] = null;
 		return fetchJson('/api/dashboard/' + key).then(function (json) {
-			LOADING[key] = false;
-			if (json.ok && json.data) { CACHE[key] = json.data; return true; }
+			if (json.ok && json.data) {
+				CACHE[key] = json.data;
+				persistState();
+				return true;
+			}
 			return false;
-		}, function (err) {
-			LOADING[key] = false;
-			throw err;
 		});
 	}
 
@@ -715,6 +753,7 @@
 	}
 
 	// Render sheet dari cache bila tersedia, atau muat (lazy) lalu cache.
+	// Bila sedang dimuat, gunakan promise yang sama (tidak ada request ganda).
 	function renderSheet(key) {
 		if (!RENDERERS[key]) return;
 		if (BASE_SHEETS[key]) {
@@ -727,17 +766,23 @@
 			rendererNow(key);
 			return;
 		}
-		if (LOADING[key]) return;
-		LOADING[key] = true;
-		fetchJson('/api/dashboard/' + key).then(function (json) {
-			LOADING[key] = false;
-			if (!json.ok || json.data == null) throw new Error(json.error || 'Gagal memuat data');
-			CACHE[key] = json.data;
+		if (!PENDING[key]) {
+			PENDING[key] = fetchJson('/api/dashboard/' + key).then(function (json) {
+				PENDING[key] = null;
+				if (!json.ok || json.data == null) throw new Error(json.error || 'Gagal memuat data');
+				CACHE[key] = json.data;
+				persistState();
+				return CACHE[key];
+			}, function (err) {
+				PENDING[key] = null;
+				throw err;
+			});
+		}
+		PENDING[key].then(function (data) {
 			if (CUR_SHEET !== key) return;
-			SD = CACHE[key];
+			SD = data;
 			rendererNow(key);
 		}).catch(function (err) {
-			LOADING[key] = false;
 			console.error('Sheet load [' + key + ']:', err);
 			if (CUR_SHEET === key) $('#sheetBody').innerHTML = errBox();
 		});
@@ -815,12 +860,17 @@
 	// Status Kepegawaian & Periode PPPK sudah ada di data dasar, tidak
 	// diulang. Tidak pernah memuat file/arsip besar di sini.
 	function preloadLight() {
-		if (CACHE.jabatan || LOADING.jabatan) return;
+		if (CACHE.jabatan || PENDING.jabatan) return;
 		var run = function () {
-			if (CACHE.jabatan || LOADING.jabatan) return;
-			fetchJson('/api/dashboard/jabatan').then(function (json) {
-				if (json.ok && json.data) CACHE.jabatan = json.data;
-			}).catch(function () { /* abaikan: dimuat saat Card dibuka */ });
+			if (CACHE.jabatan || PENDING.jabatan) return;
+			PENDING.jabatan = fetchJson('/api/dashboard/jabatan').then(function (json) {
+				PENDING.jabatan = null;
+				if (json.ok && json.data) {
+					CACHE.jabatan = json.data;
+					persistState();
+				}
+				return null;
+			}, function () { PENDING.jabatan = null; return null; });
 		};
 		if (window.requestIdleCallback) window.requestIdleCallback(run, { timeout: 3000 });
 		else setTimeout(run, 1200);
@@ -851,6 +901,8 @@
 					showNotFound();
 					return;
 				}
+				hydrateCache();
+				persistState();
 				renderHeader();
 				renderInfo();
 				showContent();
@@ -934,15 +986,32 @@
 
 		sheetDelegation();
 
-		// Data biasanya dimuat asinkron dari /api/dashboard agar halaman
-		// tampil instan. Bila ada data ter-sisip (DASH_DATA.found) render langsung.
-		if (window.DASH_DATA && window.DASH_DATA.found) {
+		// Tampil instan bila data sudah tersimpan di sesi ini (Card Box
+		// langsung pakai cache), lalu segarkan data dasar di latar belakang.
+		var inline = !!(window.DASH_DATA && window.DASH_DATA.found);
+		var saved = inline ? null : loadPersisted();
+		if (inline) {
 			DATA = window.DASH_DATA;
+			hydrateCache();
 			renderHeader();
 			renderInfo();
 			showContent();
-		} else {
-			loadData();
+			persistState();
+			return;
 		}
+		if (saved) {
+			DATA = saved.data;
+			hydrateCache();
+			renderHeader();
+			renderInfo();
+			showContent();
+			refreshBase().then(function (ok) {
+				if (!ok) return;
+				persistState();
+				if (CUR_SHEET && BASE_SHEETS[CUR_SHEET]) reloadSheet();
+			});
+			return;
+		}
+		loadData();
 	});
 })();

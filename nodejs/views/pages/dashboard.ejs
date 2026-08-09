@@ -154,6 +154,7 @@
 
 	<script>
 		window.DASH_DATA = <%- JSON.stringify(dashData || { found: false, error: true }).replace(/</g, '\\u003c') %>;
+		window.DASH_ME = <%- JSON.stringify(dashMe || { username: '' }).replace(/</g, '\\u003c') %>;
 		window.DASH_CFG = {
 			csrf: '<%= csrf %>'
 		};

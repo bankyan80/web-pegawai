@@ -244,10 +244,12 @@ function isMobileUA(req) {
 // data pribadi dimuat asinkron oleh browser dari /api/dashboard
 // sehingga halaman langsung tampil walaupun koneksi DB lambat/cold.
 router.get('/dashboard', requireLogin, (req, res) => {
+  const member = req.session.MEMBER;
   res.render('pages/dashboard', {
     csrf: req.session.csrfToken,
-    member: req.session.MEMBER,
-    dashData: null
+    member,
+    dashData: null,
+    dashMe: { username: (member && member.username) || '', pegawai_id: (member && member.pegawai_id) || null }
   });
 });
 
