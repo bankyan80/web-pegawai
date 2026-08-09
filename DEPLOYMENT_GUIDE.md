@@ -41,6 +41,18 @@ git pull
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 ```
 
+### Deploy otomatis dari Windows (script)
+`scripts/deploy-vps.ps1` mengirim isi repo (hanya file ter-commit, tanpa secret) ke
+VPS lalu membangun ulang container:
+```powershell
+.\scripts\deploy-vps.ps1 -Vps root@203.0.113.5            # uji di :3000
+.\scripts\deploy-vps.ps1 -Vps root@203.0.113.5 -Prod      # dengan Caddy HTTPS
+.\scripts\deploy-vps.ps1 -Vps root@203.0.113.5 -DryRun    # lihat perintah tanpa eksekusi
+```
+Prasyarat: SSH key sudah terpasang (`ssh-copy-id`), `nodejs/.env` ada di server
+(untuk `-Prod` juga `Caddyfile`). Sekali saja sediakan file tersebut di VPS —
+script tidak akan menimpanya.
+
 ### Log
 ```bash
 docker logs -f pegawai_web
