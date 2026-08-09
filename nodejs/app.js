@@ -7,6 +7,7 @@ const path = require('path');
 const pages = require('./routes/pages');
 const controllers = require('./routes/controllers');
 const apiKep = require('./routes/api-kep');
+const apiSelf = require('./routes/api-self');
 const apiDashboard = require('./routes/api-dashboard');
 const analysisRoutes = require('./routes/analysis');
 const menuModel = require('./models/menu');
@@ -70,6 +71,7 @@ app.use(async (req, res, next) => {
 app.use('/', pages);
 app.use('/controller', controllers);
 app.use('/api/kep', apiKep);
+app.use('/api/self', apiSelf);
 app.use('/api', apiDashboard);
 app.use('/api/analysis', analysisRoutes);
 

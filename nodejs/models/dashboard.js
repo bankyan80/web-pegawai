@@ -201,7 +201,25 @@ async function selByName(tab, nip, nama) {
 
 // Ambil seluruh data personal milik satu pegawai.
 // 'member' adalah sesi login (role staff/pegawai).
-async function getPersonalData(member) {
+// Hasil di-cache per pegawai (TTL pendek) agar kunjungan berulang
+// pada instance hangat tidak mengulang query Supabase.
+const CACHE_TTL = 20000;
+const cache = {};
+
+
+function buildPresensiRange(pegawai) {
+  const curYear = new Date().getFullYear();
+  const pppk = buildPeriodePppk(pegawai);
+  let endYear = curYear;
+  if (pppk && pppk.tanggalBerakhir) {
+    const y = parseInt(String(pppk.tanggalBerakhir).slice(0, 4), 10);
+    if (y) endYear = y;
+  }
+  const startYear = Math.min(curYear, endYear);
+  return { startYear, endYear };
+}
+
+async function resolvePegawai(member) {
   const username = String((member && member.username) || '').trim();
   const pid = member && member.pegawai_id;
 
@@ -217,6 +235,11 @@ async function getPersonalData(member) {
       .catch(() => []);
     pegawai = rows[0];
   }
+  return pegawai || null;
+}
+
+async function computePersonalData(member) {
+  const pegawai = await resolvePegawai(member);
   if (!pegawai) return { found: false };
 
   const id = pegawai.id;
@@ -288,6 +311,7 @@ async function getPersonalData(member) {
       unit
     },
     periodePppk: buildPeriodePppk(pegawai),
+    presensiRange: buildPresensiRange(pegawai),
     pangkat: {
       pangkat: pegawai.pangkat || '',
       golongan: pegawai.golongan || '',
@@ -392,4 +416,19 @@ async function getPersonalData(member) {
   };
 }
 
-module.exports = { getPersonalData, segJenis, formatTgl };
+async function getPersonalData(member) {
+  const username = String((member && member.username) || '').trim();
+  const pid = member && member.pegawai_id;
+  const key = 'p' + (pid || username || 'anon');
+  const hit = cache[key];
+  if (hit && Date.now() - hit.ts <= CACHE_TTL) return hit.data;
+  const data = await computePersonalData(member);
+  cache[key] = { data, ts: Date.now() };
+  return data;
+}
+
+function invalidateCache() {
+  Object.keys(cache).forEach((k) => delete cache[k]);
+}
+
+module.exports = { getPersonalData, invalidateCache, resolvePegawai, segJenis, formatTgl };

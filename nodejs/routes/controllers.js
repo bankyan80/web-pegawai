@@ -37,6 +37,13 @@ router.post('/login', async (req, res) => {
         unit: rs.unit,
         pegawai_id: rs.pegawai_id || null
       };
+      // Pegawai (staff) di HP langsung diarahkan ke Dashboard Personal
+      // agar tidak perlu hop ekstra via /?hal=home.
+      const ua = req.get('user-agent') || '';
+      const isMobile = /Android|iPhone|iPod|Mobile|Opera Mini|IEMobile|BlackBerry|Windows Phone/i.test(ua);
+      if (rs.role === 'staff' && isMobile && req.body.desktop !== '1') {
+        return res.redirect('/dashboard');
+      }
       res.redirect('/?hal=home');
     } else {
       await model.catatPercobaan(username, ip);

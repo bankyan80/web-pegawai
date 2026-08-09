@@ -511,3 +511,69 @@ body { overflow-x: hidden; }
 @media (min-width: 480px) {
 	.dash-grid-2 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+
+/* ---------------- Self-service (form & aksi) ---------------- */
+.dash-form { padding: 2px 0 8px; }
+.dash-form-field { margin-bottom: 14px; }
+.dash-form-field label { display: block; font-size: 12.5px; font-weight: 700; color: var(--dash-muted); margin-bottom: 6px; }
+.dash-form-field label .req { color: #dc2626; font-style: normal; }
+.dash-form-field input,
+.dash-form-field select,
+.dash-form-field textarea {
+	width: 100%;
+	border: 1px solid var(--dash-border);
+	border-radius: 12px;
+	padding: 11px 12px;
+	font-size: 14px;
+	background: #fff;
+	color: var(--dash-text);
+	-webkit-appearance: none;
+	appearance: auto;
+}
+.dash-form-field input:focus,
+.dash-form-field select:focus,
+.dash-form-field textarea:focus { outline: none; border-color: var(--dash-primary); box-shadow: 0 0 0 3px rgba(67, 56, 202, 0.12); }
+.dash-form-field input[type="file"] { padding: 9px; }
+.dash-form-file { margin-top: 6px; font-size: 12px; word-break: break-all; }
+.dash-form-file .file-meta { color: var(--dash-muted); }
+.dash-form-msg { margin: 4px 0 0; min-height: 20px; font-size: 13px; }
+.dash-item-actions { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+.dash-item-actions .file-act { border: none; border-radius: 9px; padding: 7px 10px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.dash-item-actions .file-act.ghost { background: #eef2ff; color: var(--dash-primary); }
+.dash-item-actions .file-act.danger { background: #fee2e2; color: #b91c1c; }
+.dash-btn.secondary { background: #e2e8f0; color: #334155; }
+
+/* ---------------- Arsip Presensi: pilihan tahun & grid bulan ---------------- */
+.pres-years { display: flex; gap: 8px; flex-wrap: wrap; }
+.pres-year {
+	border: 1px solid var(--dash-border);
+	background: #fff;
+	color: var(--dash-text);
+	border-radius: 999px;
+	padding: 8px 16px;
+	font-size: 13px;
+	font-weight: 600;
+	cursor: pointer;
+}
+.pres-year.on { background: var(--dash-primary); border-color: var(--dash-primary); color: #fff; }
+.pres-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.pres-cell {
+	border: 1px solid var(--dash-border);
+	border-radius: 12px;
+	padding: 10px;
+	text-align: center;
+	min-height: 74px;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	gap: 6px;
+}
+.pres-cell.has { background: #f5f7ff; border-color: #c7d2fe; }
+.pres-cell-month { font-size: 12.5px; font-weight: 700; color: var(--dash-text); }
+.pres-cell-empty { font-size: 11px; color: var(--dash-muted); }
+.pres-cell-file { font-size: 11px; }
+.pres-cell-file .file-meta { color: var(--dash-muted); word-break: break-all; margin-bottom: 6px; }
+.pres-cell-acts { display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; }
+.pres-cell-acts .file-act { border: none; border-radius: 8px; padding: 6px 8px; font-size: 11px; font-weight: 600; cursor: pointer; text-decoration: none; }
+.pres-cell-acts .file-act.primary { background: var(--dash-primary); color: #fff; }
+.pres-cell-acts .file-act.ghost { background: #eef2ff; color: var(--dash-primary); }

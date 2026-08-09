@@ -1,13 +1,16 @@
 /* Dashboard Pegawai Personal — mobile single page.
    Muat data dari /api/dashboard, tampilkan skeleton, lalu render
    Card Box & Bottom Sheet. Seluruh data sudah dibatasi di backend
-   per pegawai yang login. */
+   per pegawai yang login. Pegawai dapat menambah/mengedit datanya
+   sendiri (kecuali Arsip Presensi yang dikelola admin). */
 (function () {
 	'use strict';
 
 	var DATA = null;
-	var PRES_FILTER = { tahun: '', bulan: '' };
+	var PRES_FILTER = { tahun: String(new Date().getFullYear()) };
 	var ARSIP_FILTER = { q: '', kat: '' };
+	var CUR_SHEET = '';
+	var UPLOADED = {};
 
 	var $ = function (sel) { return document.querySelector(sel); };
 
@@ -54,6 +57,36 @@
 		return '<div class="dash-empty-sm"><i class="fas fa-exclamation-triangle"></i><div>Data gagal dimuat.<br>Silakan coba lagi.</div><button class="dash-btn" onclick="window.location.reload()"><i class="fas fa-sync-alt"></i> Coba Lagi</button></div>';
 	}
 
+	/* ---------------- Helper API & refresh ---------------- */
+
+	function csrfToken() {
+		return (window.DASH_CFG && window.DASH_CFG.csrf) || '';
+	}
+
+	function apiSelf(method, path, body) {
+		return fetch('/api/self' + path, {
+			method: method,
+			headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken() },
+			body: JSON.stringify(body || {})
+		}).then(function (res) { return res.json(); });
+	}
+
+	function refreshData() {
+		return fetch('/api/dashboard', { headers: { 'Accept': 'application/json' } })
+			.then(function (res) { return res.json(); })
+			.then(function (json) {
+				if (json.ok && json.data) { DATA = json.data; renderHeader(); renderInfo(); return true; }
+				return false;
+			});
+	}
+
+	function reloadSheet() {
+		if (CUR_SHEET && RENDERERS[CUR_SHEET]) {
+			try { RENDERERS[CUR_SHEET](); }
+			catch (e) { console.error('Sheet reload [' + CUR_SHEET + ']:', e); $('#sheetBody').innerHTML = errBox(); }
+		}
+	}
+
 	/* ---------------- Render utama ---------------- */
 
 	function renderHeader() {
@@ -80,6 +113,214 @@
 		}).join('');
 	}
 
+	/* ---------------- Self-service: tombol & aksi item ---------------- */
+
+	var SELF_MODULS = { mutasi: 1, jabatan: 1, sertifikasi: 1, cuti: 1, surat: 1, arsip: 1 };
+
+	function selfToolbar(modul, label) {
+		return '<div class="dash-filterbar"><button type="button" class="dash-btn primary" data-selfadd="' + modul + '"><i class="fas fa-plus"></i> ' + (label || 'Tambah Data') + '</button></div>';
+	}
+
+	function itemActions(modul, item) {
+		return '<div class="dash-item-actions">' +
+			'<button type="button" class="file-act ghost" data-selfedit="' + modul + '" data-id="' + item.id + '"><i class="fas fa-edit"></i> Edit</button>' +
+			'<button type="button" class="file-act ghost danger" data-selfdel="' + modul + '" data-id="' + item.id + '"><i class="fas fa-trash"></i> Hapus</button>' +
+			'</div>';
+	}
+
+	function showSelfForm(modul, id) {
+		UPLOADED = {};
+		var def = SELF_DEFS[modul];
+		if (!def) return;
+		var rec = null;
+		if (id && def.data && DATA[def.data]) {
+			for (var i = 0; i < DATA[def.data].length; i++) {
+				if (String(DATA[def.data][i].id) === String(id)) { rec = DATA[def.data][i]; break; }
+			}
+		}
+		var html = '<div class="dash-form">' +
+			'<div class="dash-sec-title">' + esc(id ? 'Ubah ' + def.title : 'Tambah ' + def.title) + '</div>';
+		def.fields.forEach(function (f) {
+			var val = rec && f.rec ? rec[f.rec] : '';
+			if (f.type === 'file') {
+				if (val) UPLOADED[modul + ':' + f.name] = val;
+				html += '<div class="dash-form-field"><label>' + esc(f.label) + (f.optional ? '' : ' <i class="req">*</i>') + '</label>' +
+					'<input type="file" data-modul="' + modul + '" data-self-file="' + f.name + '" accept="' + (f.accept || 'application/pdf,application/msword,image/*') + '" />' +
+					'<div class="dash-form-file" id="selfFileDisp_' + f.name + '">' + (val ? '<span class="dash-badge b-green">Terpasang</span> <span class="file-meta">' + esc(val.split('/').pop()) + '</span>' : '<span class="file-meta">Belum ada file.</span>') + '</div></div>';
+				return;
+			}
+			if (f.type === 'select') {
+				var opts = '<option value="">— pilih —</option>';
+				f.options.forEach(function (o) {
+					opts += '<option value="' + esc(o) + '"' + (String(val) === String(o) ? ' selected' : '') + '>' + esc(o) + '</option>';
+				});
+				html += '<div class="dash-form-field"><label>' + esc(f.label) + (f.optional ? '' : ' <i class="req">*</i>') + '</label><select data-fname="' + f.name + '">' + opts + '</select></div>';
+				return;
+			}
+			if (f.type === 'textarea') {
+				html += '<div class="dash-form-field"><label>' + esc(f.label) + '</label><textarea data-fname="' + f.name + '" rows="3">' + esc(val) + '</textarea></div>';
+				return;
+			}
+			html += '<div class="dash-form-field"><label>' + esc(f.label) + (f.optional ? '' : ' <i class="req">*</i>') + '</label>' +
+				'<input type="' + (f.type || 'text') + '" data-fname="' + f.name + '" value="' + esc(val) + '"' + (f.placeholder ? ' placeholder="' + esc(f.placeholder) + '"' : '') + ' /></div>';
+		});
+		html += '<div class="dash-form-msg" id="selfFormMsg"></div>' +
+			'<div class="dash-sheet-actions"><button type="button" class="dash-btn primary" data-self-save="' + modul + '"' + (id ? ' data-id="' + id + '"' : '') + '><i class="fas fa-save"></i> Simpan</button>' +
+			'<button type="button" class="dash-btn" data-self-cancel><i class="fas fa-times"></i> Batal</button></div></div>';
+		$('#sheetBody').innerHTML = html;
+	}
+
+	function submitSelf(modul, id, payload) {
+		return apiSelf(id ? 'PUT' : 'POST', '/' + modul + (id ? '/' + id : ''), payload);
+	}
+
+	function saveSelf(modul, id) {
+		var def = SELF_DEFS[modul];
+		if (!def) return;
+		var payload = {};
+		def.fields.forEach(function (f) {
+			if (f.type === 'file') {
+				var u = UPLOADED[modul + ':' + f.name];
+				if (u) payload[f.name] = u;
+				return;
+			}
+			var el = $('#sheetBody').querySelector('[data-fname="' + f.name + '"]');
+			var v = el ? String(el.value || '').trim() : '';
+			if (v !== '') payload[f.name] = v;
+		});
+		var msg = $('#selfFormMsg');
+		var btn = $('#sheetBody').querySelector('[data-self-save]');
+		if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan…'; }
+		var p;
+		if (modul === 'profil') {
+			var foto = UPLOADED['profil:foto'];
+			var payloadProfil = {};
+			def.fields.forEach(function (f) {
+				if (f.type === 'file') return;
+				var el = $('#sheetBody').querySelector('[data-fname="' + f.name + '"]');
+				var v = el ? String(el.value || '').trim() : '';
+				if (v !== '') payloadProfil[f.name] = v;
+			});
+			if (foto && String(foto).indexOf('data:') === 0) {
+				var mime = (String(foto).match(/^data:([^;]+)/) || [])[1] || 'image/jpeg';
+				var b64 = String(foto).split(',')[1] || '';
+				p = apiSelf('POST', '/foto', { contentType: mime, base64: b64 })
+					.then(function (res) {
+						if (!res || !res.ok) throw new Error((res && res.error) || 'Foto gagal diunggah');
+						return apiSelf('PUT', '/profil', payloadProfil);
+					});
+			} else {
+				p = apiSelf('PUT', '/profil', payloadProfil);
+			}
+		} else p = submitSelf(modul, id, payload);
+		p.then(function (res) {
+			if (res && res.ok) {
+				return refreshData().then(function () { reloadSheet(); });
+			}
+			if (msg) msg.innerHTML = '<span class="dash-badge b-red">' + esc((res && res.error) || 'Gagal menyimpan.') + '</span>';
+			if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> Simpan'; }
+		}).catch(function (err) {
+			console.error('SELF save:', err);
+			if (msg) msg.innerHTML = '<span class="dash-badge b-red">Gagal menyimpan.</span>';
+			if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> Simpan'; }
+		});
+	}
+
+	function delSelf(modul, id) {
+		if (!window.confirm('Hapus data ini? Tindakan tidak dapat dibatalkan.')) return;
+		apiSelf('DELETE', '/' + modul + '/' + id).then(function (res) {
+			if (res && res.ok) { refreshData().then(reloadSheet); }
+			else window.alert((res && res.error) || 'Gagal menghapus data.');
+		}).catch(function (err) { console.error('SELF delete:', err); window.alert('Gagal menghapus data.'); });
+	}
+
+	/* ---------------- Definisi form self-service ---------------- */
+
+	var SELF_DEFS = {
+		profil: {
+			title: 'Profil',
+			data: 'profil',
+			fields: [
+				{ name: 'foto', label: 'Foto Profil', type: 'file', rec: 'foto', optional: true, accept: 'image/*' },
+				{ name: 'jk', label: 'Jenis Kelamin', type: 'select', options: ['Laki-laki', 'Perempuan'], rec: 'jk' },
+				{ name: 'ttl', label: 'Tempat & Tanggal Lahir', type: 'text', rec: 'ttl', placeholder: 'cth: Bandung, 17 Agustus 1990' },
+				{ name: 'alamat', label: 'Alamat', type: 'textarea', rec: 'alamat' },
+				{ name: 'hp', label: 'Nomor HP', type: 'tel', rec: 'hp', placeholder: '08xxxxxxxxxx' },
+				{ name: 'email', label: 'Email', type: 'email', rec: 'email' },
+				{ name: 'pendidikan', label: 'Pendidikan Terakhir', type: 'select', options: ['SD', 'SMP', 'SMA', 'D1', 'D2', 'D3', 'D4', 'S1', 'S2', 'S3'], rec: 'pendidikan' },
+				{ name: 'jurusan', label: 'Program Studi', type: 'text', rec: 'jurusan' }
+			]
+		},
+		mutasi: {
+			title: 'Mutasi',
+			data: 'mutasi',
+			fields: [
+				{ name: 'jenis', label: 'Jenis Mutasi', type: 'select', options: ['Pindah Tugas', 'Pindah Instansi', 'Mutasi Internal', 'Promosi', 'Demosi'], rec: 'jenis' },
+				{ name: 'asal', label: 'Dari (Instansi/Sekolah)', type: 'text', rec: 'asal' },
+				{ name: 'tujuan', label: 'Ke (Instansi/Sekolah)', type: 'text', rec: 'tujuan' },
+				{ name: 'tanggal', label: 'Tanggal Mutasi', type: 'date', rec: 'tanggal' },
+				{ name: 'nomor_sk', label: 'Nomor SK', type: 'text', rec: 'nomorSk', optional: true },
+				{ name: 'dokumen', label: 'Dokumen', type: 'file', rec: 'dokumen', optional: true },
+				{ name: 'keterangan', label: 'Keterangan', type: 'textarea', rec: 'keterangan', optional: true }
+			]
+		},
+		jabatan: {
+			title: 'Jabatan & Penugasan',
+			data: 'jabatan',
+			fields: [
+				{ name: 'jabatan', label: 'Nama Jabatan', type: 'text', rec: 'jabatan' },
+				{ name: 'jenis', label: 'Jenis', type: 'select', options: ['Utama', 'Tambahan'], rec: 'jenis' },
+				{ name: 'tmt', label: 'TMT Jabatan', type: 'date', rec: 'tmt' },
+				{ name: 'nomor_sk', label: 'Nomor SK', type: 'text', rec: 'nomorSk', optional: true },
+				{ name: 'tanggal_sk', label: 'Tanggal SK', type: 'date', rec: 'tanggalSk', optional: true },
+				{ name: 'keterangan', label: 'Keterangan', type: 'textarea', rec: 'keterangan', optional: true }
+			]
+		},
+		sertifikasi: {
+			title: 'Sertifikasi & Tunjangan',
+			data: 'sertifikasi',
+			fields: [
+				{ name: 'nama_sertifikasi', label: 'Nama Sertifikasi', type: 'text', rec: 'nama' },
+				{ name: 'bidang', label: 'Bidang Studi', type: 'text', rec: 'bidang' },
+				{ name: 'nomor', label: 'Nomor Sertifikat', type: 'text', rec: 'nomor', optional: true },
+				{ name: 'tahun', label: 'Tahun Sertifikasi', type: 'number', rec: 'tahun' },
+				{ name: 'tunjangan', label: 'Tunjangan', type: 'text', rec: 'tunjangan', optional: true },
+				{ name: 'keterangan', label: 'Keterangan', type: 'textarea', rec: 'keterangan', optional: true }
+			]
+		},
+		cuti: {
+			title: 'Cuti',
+			data: 'cuti',
+			fields: [
+				{ name: 'jenis', label: 'Jenis Cuti', type: 'select', options: ['Cuti Tahunan', 'Cuti Besar', 'Cuti Sakit', 'Cuti Melahirkan', 'Cuti Karena Alasan Penting', 'Cuti Bersama'], rec: 'jenis' },
+				{ name: 'mulai', label: 'Tanggal Mulai', type: 'date', rec: 'mulai' },
+				{ name: 'selesai', label: 'Tanggal Selesai', type: 'date', rec: 'selesai' },
+				{ name: 'lama', label: 'Lama Cuti (hari)', type: 'number', rec: 'lama', optional: true }
+			]
+		},
+		surat: {
+			title: 'Surat Kepegawaian',
+			data: 'surat',
+			fields: [
+				{ name: 'jenis', label: 'Jenis Surat', type: 'text', rec: 'jenis' },
+				{ name: 'nomor', label: 'Nomor Surat', type: 'text', rec: 'nomor', optional: true },
+				{ name: 'tanggal', label: 'Tanggal Surat', type: 'date', rec: 'tanggal', optional: true },
+				{ name: 'perihal', label: 'Perihal', type: 'text', rec: 'perihal' },
+				{ name: 'isi', label: 'Isi / Keterangan', type: 'textarea', rec: 'isi', optional: true }
+			]
+		},
+		arsip: {
+			title: 'Arsip Kepegawaian',
+			data: 'arsip',
+			fields: [
+				{ name: 'kategori', label: 'Kategori', type: 'text', rec: 'kategori' },
+				{ name: 'nama_dokumen', label: 'Nama Dokumen', type: 'text', rec: 'nama_dokumen' },
+				{ name: 'file', label: 'File', type: 'file', rec: 'file' },
+				{ name: 'keterangan', label: 'Keterangan', type: 'textarea', rec: 'keterangan', optional: true }
+			]
+		}
+	};
+
 	/* ---------------- Sheet renderer per layanan ---------------- */
 
 	function sheetProfil() {
@@ -94,7 +335,8 @@
 			kv('TMT', esc(p.tmt)) + kv('Sekolah', esc(p.sekolah)) + kv('Unit Kerja', esc(p.unitKerja));
 		var pend = kv('Pendidikan Terakhir', esc(p.pendidikan)) + kv('Program Studi', esc(p.jurusan)) +
 			kv('Tahun Lulus', esc(p.tahunLulus));
-		return secTitle('Identitas') + identitas + secTitle('Kepegawaian') + kepeg + secTitle('Pendidikan') + pend;
+		return selfToolbar('profil', 'Edit Profil') +
+			secTitle('Identitas') + identitas + secTitle('Kepegawaian') + kepeg + secTitle('Pendidikan') + pend;
 	}
 
 	function sheetStatus() {
@@ -160,16 +402,18 @@
 	}
 
 	function sheetMutasi() {
+		var out = selfToolbar('mutasi');
 		if (!DATA.mutasi.length) {
-			return '<div class="dash-sec">' + emptyBox('Belum ada data mutasi.') + '</div>';
+			return out + '<div class="dash-sec">' + emptyBox('Belum ada data mutasi.') + '</div>';
 		}
-		return DATA.mutasi.map(function (m) {
+		return out + DATA.mutasi.map(function (m) {
 			return '<div class="dash-timeline"><div class="dash-tl-item"><div class="tl-title">' + esc(m.jenis || 'Mutasi') + '</div>' +
 				'<div class="tl-sub">' + esc(m.asal) + ' → ' + esc(m.tujuan) + '</div>' +
 				'<div class="tl-sub">Unit: ' + esc(m.keterangan || '-') + '</div>' +
 				'<div class="tl-sub">SK: ' + esc(m.nomorSk || '-') + '</div>' +
 				'<div class="tl-date">' + esc(fmtTanggal(m.tanggal)) + ' &nbsp; ' + badge(m.status, STATUS_BADGE) + '</div>' +
 				(m.dokumen ? '<div class="tl-date"><a href="' + esc(m.dokumen) + '" target="_blank" rel="noopener"><i class="fas fa-paperclip"></i> Dokumen</a></div>' : '') +
+				itemActions('mutasi', m) +
 				'</div></div>';
 		}).join('');
 	}
@@ -178,10 +422,10 @@
 		var j = DATA.jabatan;
 		var utama = j.filter(function (x) { return /utama/i.test(x.jenis); });
 		var tambahan = j.filter(function (x) { return !/utama/i.test(x.jenis); });
+		var out = selfToolbar('jabatan');
 		if (!j.length) {
-			return '<div class="dash-sec">' + emptyBox('Belum ada data jabatan & penugasan.') + '</div>';
+			return out + '<div class="dash-sec">' + emptyBox('Belum ada data jabatan & penugasan.') + '</div>';
 		}
-		var out = '';
 		if (utama.length) {
 			out += secTitle('Jabatan Utama');
 			out += utama.map(jabatanCard).join('');
@@ -197,32 +441,37 @@
 		return '<div class="dash-sec">' +
 			kv('Jabatan', esc(r.jabatan)) + kv('TMT', esc(fmtTanggal(r.tmt))) +
 			kv('Nomor SK', esc(r.nomorSk)) + kv('Tanggal SK', esc(fmtTanggal(r.tanggalSk))) +
-			kv('Status', badge(r.status, STATUS_BADGE)) + kv('Keterangan', esc(r.keterangan)) + '</div>';
+			kv('Status', badge(r.status, STATUS_BADGE)) + kv('Keterangan', esc(r.keterangan)) +
+			itemActions('jabatan', r) + '</div>';
 	}
 
 	function sheetSertifikasi() {
+		var out = selfToolbar('sertifikasi');
 		if (!DATA.sertifikasi.length) {
-			return '<div class="dash-sec">' + emptyBox('Belum ada data sertifikasi & tunjangan.') + '</div>';
+			return out + '<div class="dash-sec">' + emptyBox('Belum ada data sertifikasi & tunjangan.') + '</div>';
 		}
-		return DATA.sertifikasi.map(function (s) {
+		return out + DATA.sertifikasi.map(function (s) {
 			return '<div class="dash-sec">' +
 				kv('Nama Sertifikasi', esc(s.nama)) + kv('Bidang Studi', esc(s.bidang)) +
 				kv('Nomor Sertifikat', esc(s.nomor)) + kv('Tahun Sertifikasi', esc(s.tahun)) +
 				kv('Status', badge(s.status, STATUS_BADGE)) + kv('Tunjangan', esc(s.tunjangan)) +
 				kv('Status Bayar', badge(s.statusBayar, { 'Dibayar': 'b-green', 'Belum Dibayar': 'b-amber' })) +
-				kv('Keterangan', esc(s.keterangan)) + '</div>';
+				kv('Keterangan', esc(s.keterangan)) +
+				itemActions('sertifikasi', s) + '</div>';
 		}).join('');
 	}
 
 	function sheetCuti() {
+		var out = selfToolbar('cuti');
 		if (!DATA.cuti.length) {
-			return '<div class="dash-sec">' + emptyBox('Belum ada data cuti.') + '</div>';
+			return out + '<div class="dash-sec">' + emptyBox('Belum ada data cuti.') + '</div>';
 		}
-		return DATA.cuti.map(function (c) {
+		return out + DATA.cuti.map(function (c) {
 			return '<div class="dash-sec">' +
 				kv('Jenis Cuti', esc(c.jenis)) + kv('Tanggal Mulai', esc(fmtTanggal(c.mulai))) +
 				kv('Tanggal Selesai', esc(fmtTanggal(c.selesai))) + kv('Lama Cuti', esc(c.lama)) +
-				kv('Status', badge(c.status, STATUS_BADGE)) + '</div>';
+				kv('Status', badge(c.status, STATUS_BADGE)) +
+				itemActions('cuti', c) + '</div>';
 		}).join('');
 	}
 
@@ -244,12 +493,19 @@
 		return out;
 	}
 
-	/* ----- Arsip Presensi ----- */
+	/* ----- Arsip Presensi (view-only, dikelola admin) ----- */
 
-	function presensiTahunList() {
-		var set = [];
-		DATA.presensi.forEach(function (r) { if (r.tahun && set.indexOf(r.tahun) === -1) set.push(r.tahun); });
-		return set.sort().reverse();
+	function presensiYears() {
+		var r = DATA.presensiRange || {};
+		var s = parseInt(r.startYear, 10);
+		var e = parseInt(r.endYear, 10);
+		var cur = new Date().getFullYear();
+		if (!s || isNaN(s)) s = cur;
+		if (!e || isNaN(e)) e = s;
+		if (e < s) e = s;
+		var out = [];
+		for (var y = s; y <= e; y++) out.push(String(y));
+		return out;
 	}
 
 	function presensiFileMeta(file) {
@@ -266,39 +522,56 @@
 		return { name: name, date: date };
 	}
 
-	function presensiFilterBar() {
-		var thn = presensiTahunList();
-		var thnOpts = '<option value="">Semua Tahun</option>' + thn.map(function (t) { return '<option value="' + esc(t) + '"' + (PRES_FILTER.tahun === t ? ' selected' : '') + '>' + esc(t) + '</option>'; }).join('');
-		var blnOpts = '<option value="">Semua Bulan</option>' + BULAN.map(function (b, i) { return '<option value="' + esc(b) + '"' + (PRES_FILTER.bulan === b ? ' selected' : '') + '>' + esc(b) + '</option>'; }).join('');
-		return '<div class="dash-filterbar"><select id="presFilterTahun">' + thnOpts + '</select><select id="presFilterBulan">' + blnOpts + '</select></div><div id="presList"></div>';
+	function presensiRangeBar() {
+		var years = presensiYears();
+		if (!PRES_FILTER.tahun || years.indexOf(PRES_FILTER.tahun) === -1) PRES_FILTER.tahun = years[years.length - 1];
+		var pills = years.map(function (y) {
+			return '<button type="button" class="pres-year' + (y === PRES_FILTER.tahun ? ' on' : '') + '" data-pres-year="' + y + '">' + y + '</button>';
+		}).join('');
+		var range = DATA.presensiRange && (DATA.presensiRange.startYear !== DATA.presensiRange.endYear);
+		return '<div class="dash-sec-title">Arsip Presensi ' + esc(PRES_FILTER.tahun) + (range ? ' s/d ' + esc(DATA.presensiRange.endYear) + ' (hingga TMT akhir)' : '') + '</div>' +
+			'<div class="dash-filterbar"><div class="pres-years">' + pills + '</div></div><div id="presList"></div>';
 	}
 
-	function presensiList() {
-		var rows = DATA.presensi.filter(function (r) {
-			if (PRES_FILTER.tahun && r.tahun !== PRES_FILTER.tahun) return false;
-			if (PRES_FILTER.bulan && r.bulan !== PRES_FILTER.bulan) return false;
-			return true;
-		});
-		if (!rows.length) return emptyBox('Belum ada arsip presensi.');
-		return rows.map(function (r) {
-			var meta = presensiFileMeta(r.file);
-			return '<div class="dash-file">' +
-				'<div class="file-icon"><i class="fas fa-file-pdf"></i></div>' +
-				'<div class="file-info"><div class="file-name">' + esc(r.bulan + ' ' + r.tahun) + '</div>' +
-				'<div class="file-meta">' + esc(meta.name) + ' &middot; Upload: ' + esc(meta.date || '-') + ' &middot; PDF</div>' +
-				'<div class="file-meta">Status: ' + badge('Tersedia', { 'Tersedia': 'b-green' }) + '</div></div>' +
-				'<div class="file-actions">' +
-				(r.file ? '<button class="file-act primary" onclick="window.open(\'' + esc(r.file) + '\',\'_blank\')">Lihat</button><a class="file-act ghost" href="' + esc(r.file) + '" download style="display:inline-flex;align-items:center;text-decoration:none">Download</a>' : '') +
-				'</div></div>';
-		}).join('');
+	function presensiGrid() {
+		var tahun = PRES_FILTER.tahun;
+		var rows = DATA.presensi.filter(function (r) { return String(r.tahun) === tahun; });
+		var map = {};
+		rows.forEach(function (r) { map[String(r.bulan)] = r; });
+		var out = '<div class="pres-grid">';
+		for (var i = 0; i < 12; i++) {
+			var bln = BULAN[i];
+			var r = map[bln];
+			var file = r && r.file;
+			out += '<div class="pres-cell' + (file ? ' has' : '') + '">' +
+				'<div class="pres-cell-month">' + esc(bln) + '</div>';
+			if (file) {
+				var meta = presensiFileMeta(file);
+				out += '<div class="pres-cell-file">' +
+					'<div class="file-meta">' + esc(meta.name) + '</div>' +
+					'<div class="pres-cell-acts">' +
+					'<button class="file-act primary" onclick="window.open(\'' + esc(file) + '\',\'_blank\')">Lihat</button>' +
+					'<a class="file-act ghost" href="' + esc(file) + '" download>Download</a>' +
+					'</div></div>';
+			} else {
+				out += '<div class="pres-cell-empty">Belum ada</div>';
+			}
+			out += '</div>';
+		}
+		out += '</div>';
+		return out;
 	}
 
 	function sheetPresensi() {
 		var body = $('#sheetBody');
-		body.innerHTML = '<div class="dash-sec">' + presensiFilterBar() + '</div>';
-		$('#presList').innerHTML = presensiList();
-		$('#presFilterTahun').addEventListener('change', function (e) { PRES_FILTER.tahun = e.target.value; $('#presList').innerHTML = presensiList(); });
-		$('#presFilterBulan').addEventListener('change', function (e) { PRES_FILTER.bulan = e.target.value; $('#presList').innerHTML = presensiList(); });
+		body.innerHTML = '<div class="dash-sec">' + presensiRangeBar() + '</div>';
+		$('#presList').innerHTML = presensiGrid();
+	}
+
+	function reloadPresensiGrid() {
+		var body = $('#sheetBody');
+		body.innerHTML = '<div class="dash-sec">' + presensiRangeBar() + '</div>';
+		$('#presList').innerHTML = presensiGrid();
 	}
 
 	/* ----- Arsip Kepegawaian ----- */
@@ -326,6 +599,7 @@
 				'<div class="file-meta">' + esc(meta.name) + ' &middot; Upload: ' + esc(meta.date || '-') + '</div></div>' +
 				'<div class="file-actions">' +
 				(r.file ? '<button class="file-act primary" onclick="window.open(\'' + esc(r.file) + '\',\'_blank\')">Lihat</button><a class="file-act ghost" href="' + esc(r.file) + '" download style="display:inline-flex;align-items:center;text-decoration:none">Download</a>' : '') +
+				itemActions('arsip', r) +
 				'</div></div>';
 		}).join('');
 	}
@@ -334,21 +608,23 @@
 		var body = $('#sheetBody');
 		var kats = arsipKategoriList();
 		var katOpts = '<option value="">Semua Kategori</option>' + kats.map(function (k) { return '<option value="' + esc(k) + '">' + esc(k) + '</option>'; }).join('');
-		body.innerHTML = '<div class="dash-sec"><div class="dash-filterbar"><div class="dash-search-wrap"><i class="fas fa-search"></i><input id="arsipSearch" type="text" placeholder="Cari dokumen..." /></div></div><div class="dash-filterbar"><select id="arsipKat">' + katOpts + '</select></div><div id="arsipList"></div></div>';
+		body.innerHTML = selfToolbar('arsip') + '<div class="dash-sec"><div class="dash-filterbar"><div class="dash-search-wrap"><i class="fas fa-search"></i><input id="arsipSearch" type="text" placeholder="Cari dokumen..." /></div></div><div class="dash-filterbar"><select id="arsipKat">' + katOpts + '</select></div><div id="arsipList"></div></div>';
 		$('#arsipList').innerHTML = arsipList();
 		$('#arsipSearch').addEventListener('input', function (e) { ARSIP_FILTER.q = e.target.value; $('#arsipList').innerHTML = arsipList(); });
 		$('#arsipKat').addEventListener('change', function (e) { ARSIP_FILTER.kat = e.target.value; $('#arsipList').innerHTML = arsipList(); });
 	}
 
 	function sheetSurat() {
+		var out = selfToolbar('surat');
 		if (!DATA.surat.length) {
-			return '<div class="dash-sec">' + emptyBox('Belum ada surat kepegawaian.') + '</div>';
+			return out + '<div class="dash-sec">' + emptyBox('Belum ada surat kepegawaian.') + '</div>';
 		}
-		return DATA.surat.map(function (s) {
+		return out + DATA.surat.map(function (s) {
 			return '<div class="dash-sec">' +
 				kv('Jenis', esc(s.jenis)) + kv('Nomor', esc(s.nomor)) +
 				kv('Tanggal', esc(fmtTanggal(s.tanggal))) + kv('Perihal', esc(s.perihal)) +
-				kv('Status', badge(s.status, STATUS_BADGE)) + '</div>';
+				kv('Status', badge(s.status, STATUS_BADGE)) +
+				itemActions('surat', s) + '</div>';
 		}).join('');
 	}
 
@@ -387,6 +663,7 @@
 	/* ---------------- Bottom sheet ---------------- */
 
 	function openSheet(key) {
+		CUR_SHEET = key;
 		var sheet = $('#dashSheet');
 		$('#sheetTitle').textContent = SHEET_TITLES[key] || 'Detail';
 		$('#sheetBody').innerHTML = '<div class="dash-empty-sm"><i class="fas fa-circle-notch fa-spin"></i><div>Memuat…</div></div>';
@@ -431,6 +708,14 @@
 		$('#dashError').hidden = false;
 	}
 
+	function showNotFound() {
+		$('#dashContent').hidden = true;
+		$('#dashSkeleton').hidden = true;
+		$('#dashError').hidden = false;
+		$('#dashError').querySelector('p').innerHTML = 'Akun ini tidak terhubung dengan data pegawai.<br>Silakan hubungi administrator.';
+		$('#dashRetry').style.display = 'none';
+	}
+
 	function showContent() {
 		$('#dashSkeleton').hidden = true;
 		$('#dashError').hidden = true;
@@ -448,11 +733,7 @@
 				if (!json.ok || !json.data) throw new Error(json.error || 'Gagal memuat data');
 				DATA = json.data;
 				if (!DATA.found) {
-					$('#dashContent').hidden = true;
-					$('#dashSkeleton').hidden = true;
-					$('#dashError').hidden = false;
-					$('#dashError').querySelector('p').innerHTML = 'Akun ini tidak terhubung dengan data pegawai.<br>Silakan hubungi administrator.';
-					$('#dashRetry').style.display = 'none';
+					showNotFound();
 					return;
 				}
 				renderHeader();
@@ -465,8 +746,60 @@
 			});
 	}
 
+	function sheetDelegation() {
+		var body = $('#sheetBody');
+		body.addEventListener('click', function (ev) {
+			var t = ev.target;
+			while (t && t !== body && !(t.getAttribute && (t.getAttribute('data-selfadd') || t.getAttribute('data-selfedit') || t.getAttribute('data-selfdel') || t.getAttribute('data-self-save') || t.getAttribute('data-self-cancel') || t.getAttribute('data-pres-year')))) t = t.parentNode;
+			if (!t || t === body) return;
+			if (t.getAttribute('data-selfadd') !== null) { showSelfForm(t.getAttribute('data-selfadd'), null); }
+			else if (t.getAttribute('data-selfedit') !== null) { showSelfForm(t.getAttribute('data-selfedit'), t.getAttribute('data-id')); }
+			else if (t.getAttribute('data-selfdel') !== null) { delSelf(t.getAttribute('data-selfdel'), t.getAttribute('data-id')); }
+			else if (t.getAttribute('data-self-save') !== null) { saveSelf(t.getAttribute('data-self-save'), t.getAttribute('data-id')); }
+			else if (t.getAttribute('data-self-cancel') !== null) { reloadSheet(); }
+			else if (t.getAttribute('data-pres-year') !== null) { PRES_FILTER.tahun = t.getAttribute('data-pres-year'); reloadPresensiGrid(); }
+		});
+		body.addEventListener('change', function (ev) {
+			var inp = ev.target;
+			var fname = inp.getAttribute && inp.getAttribute('data-self-file');
+			var modul = inp.getAttribute && inp.getAttribute('data-modul');
+			if (!fname || !modul) return;
+			var file = inp.files && inp.files[0];
+			if (!file) return;
+			var reader = new FileReader();
+			reader.onload = function () {
+				var base64 = String(reader.result).split(',')[1];
+				var disp = document.getElementById('selfFileDisp_' + fname);
+				var isFoto = (modul === 'profil' && fname === 'foto');
+				if (isFoto) {
+					// Foto ditunda sampai tombol Simpan agar tidak mengubah
+					// foto aktif bila pengguna membatalkan form.
+					UPLOADED[modul + ':' + fname] = reader.result;
+					if (disp) disp.innerHTML = '<span class="dash-badge b-amber">Siap disimpan</span> <span class="file-meta">' + esc(file.name) + '</span>';
+					return;
+				}
+				apiSelf('POST', '/upload', { filename: Date.now() + '-' + file.name.replace(/[^a-zA-Z0-9._-]/g, '_'), contentType: file.type || 'application/octet-stream', base64: base64 })
+					.then(function (res) {
+						if (res && res.ok && res.url) {
+							UPLOADED[modul + ':' + fname] = res.url;
+							if (disp) disp.innerHTML = '<span class="dash-badge b-green">Terunggah</span> <span class="file-meta">' + esc(res.url.split('/').pop()) + '</span>';
+						} else if (disp) {
+							disp.innerHTML = '<span class="dash-badge b-red">Gagal: ' + esc((res && res.error) || 'upload') + '</span>';
+						}
+					}).catch(function (err) {
+						console.error('SELF upload:', err);
+						if (disp) disp.innerHTML = '<span class="dash-badge b-red">Gagal mengunggah.</span>';
+					});
+			};
+			reader.onerror = function () {
+				var disp = document.getElementById('selfFileDisp_' + fname);
+				if (disp) disp.innerHTML = '<span class="dash-badge b-red">Gagal membaca file.</span>';
+			};
+			reader.readAsDataURL(file);
+		});
+	}
+
 	document.addEventListener('DOMContentLoaded', function () {
-		// Delegasi klik kartu layanan
 		document.querySelectorAll('.dash-card').forEach(function (card) {
 			card.addEventListener('click', function () { openSheet(card.getAttribute('data-sheet')); });
 		});
@@ -479,6 +812,19 @@
 		$('#dashBackdrop').addEventListener('click', closeSheet);
 		$('#dashRetry').addEventListener('click', loadData);
 
-		loadData();
+		sheetDelegation();
+
+		if (window.DASH_DATA && window.DASH_DATA.found) {
+			DATA = window.DASH_DATA;
+			renderHeader();
+			renderInfo();
+			showContent();
+		} else if (window.DASH_DATA && window.DASH_DATA.error) {
+			showError();
+		} else if (window.DASH_DATA && !window.DASH_DATA.found) {
+			showNotFound();
+		} else {
+			loadData();
+		}
 	});
 })();
