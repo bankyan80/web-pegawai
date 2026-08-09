@@ -1501,6 +1501,42 @@ body {
   min-width: 240px;
 }
 
+.pppk-table {
+  font-size: 0.76rem;
+}
+
+.pppk-table thead th {
+  padding: 0.5rem 0.5rem;
+  font-size: 0.66rem;
+  letter-spacing: 0.4px;
+}
+
+.pppk-table tbody td {
+  padding: 0.4rem 0.5rem;
+}
+
+.pppk-table tbody td.pppk-nowrap {
+  white-space: nowrap;
+}
+
+.pppk-table .kep-no-col {
+  width: 34px;
+}
+
+.pppk-table .kep-td-act {
+  white-space: nowrap;
+}
+
+.pppk-table .kep-td-act .btn {
+  padding: 0.22rem 0.45rem;
+  font-size: 0.7rem;
+}
+
+.pppk-table .kep-badge {
+  font-size: 0.66rem;
+  padding: 0.16rem 0.4rem;
+}
+
 .pppk-empty {
   text-align: center;
   padding: 2rem 1rem;

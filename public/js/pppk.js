@@ -142,18 +142,18 @@
       tr.innerHTML =
         '<td class="kep-no">' + (from + i + 1) + '</td>' +
         '<td><strong>' + esc(r.nama) + '</strong></td>' +
-        '<td>' + esc(r.nip) + '</td>' +
-        '<td>' + esc(r.nik) + '</td>' +
-        '<td>' + (r.nuptk ? esc(r.nuptk) : '-') + '</td>' +
+        '<td class="pppk-nowrap">' + esc(r.nip) + '</td>' +
+        '<td class="pppk-nowrap">' + esc(r.nik) + '</td>' +
+        '<td class="pppk-nowrap">' + (r.nuptk ? esc(r.nuptk) : '-') + '</td>' +
         '<td>' + esc(r.statusKepegawaian) + '</td>' +
         '<td>' + esc(r.jabatan) + '</td>' +
         '<td>' + esc(r.sekolah) + '</td>' +
-        '<td>' + (r.tmt ? esc(r.tmt) : '-') + '</td>' +
-        '<td>' + (r.tanggalMulai ? esc(r.tanggalMulai) : '-') + '</td>' +
-        '<td>' + (r.tanggalBerakhir ? esc(r.tanggalBerakhir) : '-') + '</td>' +
-        '<td>' + esc(masaLabel(r)) + '</td>' +
-        '<td>' + sisaText(r) + '</td>' +
-        '<td>' + statusBadge(r) + '</td>' +
+        '<td class="pppk-nowrap">' + (r.tmt ? esc(r.tmt) : '-') + '</td>' +
+        '<td class="pppk-nowrap">' + (r.tanggalMulai ? esc(r.tanggalMulai) : '-') + '</td>' +
+        '<td class="pppk-nowrap">' + (r.tanggalBerakhir ? esc(r.tanggalBerakhir) : '-') + '</td>' +
+        '<td class="pppk-nowrap">' + esc(masaLabel(r)) + '</td>' +
+        '<td class="pppk-nowrap">' + sisaText(r) + '</td>' +
+        '<td class="pppk-nowrap">' + statusBadge(r) + '</td>' +
         '<td class="kep-td-act">' +
           '<a class="btn btn-sm btn-outline-primary btn-kep-sm" href="/profil-pegawai/detail/' + esc(r.id) + '"><i class="fas fa-user"></i> Profil</a> ' +
           '<button type="button" class="btn btn-sm btn-outline-secondary btn-kep-sm pppk-detail" data-id="' + esc(r.id) + '"><i class="fas fa-eye"></i> Detail</button>' +
