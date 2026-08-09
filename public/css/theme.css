@@ -1495,6 +1495,12 @@ body {
 
 .pppk-toolbar .pppk-filter {
   min-width: 160px;
+  font-size: 0.95rem;
+  color: #334155;
+}
+
+.pppk-toolbar .pppk-filter option[value=""] {
+  color: #64748b;
 }
 
 .pppk-toolbar .pppk-search {

@@ -1643,6 +1643,30 @@ router.get('/periode-pppk', async (req, res, next) => {
     return d.toISOString().slice(0, 10);
   }
 
+  // Periode ke-berapa yang sedang berjalan, dihitung menumpuk dari TMT:
+  // periode ke-1 = TMT s.d. TMT+masa, ke-2 = TMT+masa s.d. TMT+2*masa, dst.
+  // Artinya pegawai yang statusnya BERAKHIR sudah berada di periode berikutnya.
+  function pppkPeriodeKe(tmt, masa, today) {
+    if (!pppkValidTmt(tmt)) return null;
+    const m = String(tmt).slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return null;
+    const base = Date.UTC(+m[1], +m[2] - 1, +m[3]);
+    let ke = 1;
+    for (;;) {
+      const s = new Date(base);
+      s.setUTCFullYear(s.getUTCFullYear() + (ke - 1) * masa);
+      const startDate = new Date(s.toISOString().slice(0, 10) + 'T00:00:00');
+      if (startDate > today) break;
+      const e = new Date(base);
+      e.setUTCFullYear(e.getUTCFullYear() + ke * masa);
+      const endDate = new Date(e.toISOString().slice(0, 10) + 'T00:00:00');
+      if (today <= endDate) return ke;
+      ke++;
+      if (ke > 500) return ke;
+    }
+    return ke;
+  }
+
   // Single source of truth: seluruh periode diturunkan dari Profil Pegawai.
   let list = (D.pegawai || [])
     .filter((p) => /pppk/i.test(String(p.jenis || '')))
@@ -1673,6 +1697,7 @@ router.get('/periode-pppk', async (req, res, next) => {
         tmt,
         masaTahun: masa,
         masaLabel: masa + ' Tahun',
+        periodeKe: tmt ? pppkPeriodeKe(tmt, masa, today) : null,
         tanggalMulai: tmt,
         tanggalBerakhir: berakhir,
         sisa,

@@ -58,6 +58,7 @@
       tanggalMulai: pick(r, 'tanggalMulai', 'tanggal_mulai'),
       tanggalBerakhir: pick(r, 'tanggalBerakhir', 'tanggal_berakhir'),
       masaLabel: pick(r, 'masaLabel', 'masa_label'),
+      periodeKe: pick(r, 'periodeKe', 'periode_ke'),
       sisa: pick(r, 'sisa', 'sisa'),
       status: pick(r, 'status', 'status')
     };
@@ -128,7 +129,7 @@
     body.innerHTML = '';
     if (!rows.length) {
       var tr = document.createElement('tr');
-      tr.innerHTML = '<td colspan="15" class="pppk-empty"><i class="fas fa-folder-open"></i>Belum ada data pegawai PPPK. Tambahkan atau lengkapi data PPPK melalui menu Profil Pegawai.</td>';
+      tr.innerHTML = '<td colspan="16" class="pppk-empty"><i class="fas fa-folder-open"></i>Belum ada data pegawai PPPK. Tambahkan atau lengkapi data PPPK melalui menu Profil Pegawai.</td>';
       body.appendChild(tr);
       renderPager(0, 0);
       return;
@@ -152,6 +153,7 @@
         '<td class="pppk-nowrap">' + (r.tanggalMulai ? esc(r.tanggalMulai) : '-') + '</td>' +
         '<td class="pppk-nowrap">' + (r.tanggalBerakhir ? esc(r.tanggalBerakhir) : '-') + '</td>' +
         '<td class="pppk-nowrap">' + esc(masaLabel(r)) + '</td>' +
+        '<td class="pppk-nowrap">' + (r.periodeKe != null ? 'Ke-' + esc(r.periodeKe) : '-') + '</td>' +
         '<td class="pppk-nowrap">' + sisaText(r) + '</td>' +
         '<td class="pppk-nowrap">' + statusBadge(r) + '</td>' +
         '<td class="kep-td-act">' +
@@ -200,6 +202,7 @@
       ['Unit Kerja/Sekolah', esc(r.sekolah)],
       ['TMT PPPK', r.tmt ? esc(r.tmt) : '-'],
       ['Masa Kontrak', esc(masaLabel(r))],
+      ['Periode Ke', r.periodeKe != null ? 'Ke-' + esc(r.periodeKe) : '-'],
       ['Tanggal Mulai Kontrak', r.tanggalMulai ? esc(r.tanggalMulai) : '-'],
       ['Tanggal Akhir Kontrak', r.tanggalBerakhir ? esc(r.tanggalBerakhir) : '-'],
       ['Sisa Masa Kontrak', sisaText(r)],
@@ -213,13 +216,13 @@
 
   function exportXls() {
     var rows = filtered();
-    var headers = ['Nama Pegawai', 'NIP/NI', 'NIK', 'NUPTK', 'Status Kepegawaian', 'Jabatan', 'Sekolah', 'TMT', 'Tgl. Mulai Kontrak', 'Tgl. Akhir Kontrak', 'Masa Kontrak', 'Sisa Masa Kontrak', 'Status'];
+    var headers = ['Nama Pegawai', 'NIP/NI', 'NIK', 'NUPTK', 'Status Kepegawaian', 'Jabatan', 'Sekolah', 'TMT', 'Tgl. Mulai Kontrak', 'Tgl. Akhir Kontrak', 'Masa Kontrak', 'Periode Ke', 'Sisa Masa Kontrak', 'Status'];
     var csv = headers.join(';') + '\r\n';
     rows.forEach(function (r) {
       var vals = [
         r.nama, r.nip, r.nik, r.nuptk || '', r.statusKepegawaian, r.jabatan, r.sekolah,
         r.tmt || '', r.tanggalMulai || '', r.tanggalBerakhir || '',
-        masaLabel(r), sisaText(r), statusOf(r)
+        masaLabel(r), (r.periodeKe != null ? 'Ke-' + r.periodeKe : '-'), sisaText(r), statusOf(r)
       ];
       csv += vals.map(function (v) {
         return '"' + String(v === undefined || v === null ? '' : v).replace(/"/g, '""') + '"';
