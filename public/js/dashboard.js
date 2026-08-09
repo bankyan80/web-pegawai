@@ -828,12 +828,23 @@
 
 	function loadData() {
 		showSkeleton();
+		// Jangan biarkan skeleton tampil selamanya: bila jaringan/API macet,
+		// tampilkan kotak error agar pengguna bisa mencoba lagi.
+		var done = false;
+		var timer = setTimeout(function () {
+			if (done) return;
+			done = true;
+			showError();
+		}, 15000);
 		fetch('/api/dashboard', { headers: { 'Accept': 'application/json' } })
 			.then(function (res) {
 				if (!res.ok) throw new Error('HTTP ' + res.status);
 				return res.json();
 			})
 			.then(function (json) {
+				if (done) return;
+				done = true;
+				clearTimeout(timer);
 				if (!json.ok || !json.data) throw new Error(json.error || 'Gagal memuat data');
 				DATA = json.data;
 				if (!DATA.found) {
@@ -845,6 +856,9 @@
 				showContent();
 			})
 			.catch(function (err) {
+				if (done) return;
+				done = true;
+				clearTimeout(timer);
 				console.error('Dashboard load:', err);
 				showError();
 			});

@@ -1,4 +1,4 @@
-const CACHE = 'timker-v6';
+const CACHE = 'timker-v7';
 const CORE = [
   '/css/bootstrap.min.css',
   '/css/theme.css',
@@ -46,6 +46,9 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET') return;
   if (url.origin !== location.origin) return;
   if (url.pathname.startsWith('/controller/')) return;
+  // API selalu lewat jaringan: responsnya per-akun & no-store, tidak boleh
+  // disajikan dari cache (bisa menampilkan data akun lain atau data basi).
+  if (url.pathname.startsWith('/api/')) return;
 
   // Navigasi halaman: jaringan dulu, bila gagal pakai cache halaman
   // terakhir yang pernah dibuka, lalu halaman beranda, terakhir pesan luring.
