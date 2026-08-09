@@ -58,6 +58,7 @@ app.use('/fontawesome', express.static(path.join(publicRoot, 'fontawesome'), { s
 app.use('/icons', express.static(path.join(publicRoot, 'icons'), { setHeaders: staticCache }));
 app.use('/manifest.webmanifest', express.static(path.join(publicRoot, 'manifest.webmanifest'), { setHeaders: (res) => { staticCache(res); res.setHeader('Content-Type', 'application/manifest+json'); } }));
 app.use('/sw.js', express.static(path.join(publicRoot, 'sw.js')));
+app.use('/favicon.ico', express.static(path.join(publicRoot, 'favicon.ico'), { setHeaders: staticCache }));
 
 // Muat menu navbar dari DB (di-cache) dan saring sesuai role member.
 app.use(async (req, res, next) => {

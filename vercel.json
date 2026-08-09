@@ -14,6 +14,7 @@
           "public/fonts/**",
           "public/icons/**",
           "public/manifest.webmanifest",
+          "public/favicon.ico",
           "public/sw.js"
         ]
       }
