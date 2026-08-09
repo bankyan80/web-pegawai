@@ -201,11 +201,23 @@ async function selByName(tab, nip, nama) {
 
 // Ambil seluruh data personal milik satu pegawai.
 // 'member' adalah sesi login (role staff/pegawai).
-// Hasil di-cache per pegawai (TTL pendek) agar kunjungan berulang
-// pada instance hangat tidak mengulang query Supabase.
+// Data dipecah: 'base' (ringan, dimuat saat halaman tampil) dan per-Card
+// yang dimuat malas (lazy load) agar dashboard mobile tampil cepat tanpa
+// mengulang query yang tidak diperlukan.
+// Hasil di-cache per pegawai (TTL pendek) agar kunjungan berulang pada
+// instance hangat tidak mengulang query Supabase.
 const CACHE_TTL = 60000;
 const cache = {};
 
+function cacheGet(key) {
+  const hit = cache[key];
+  if (hit && Date.now() - hit.ts <= CACHE_TTL) return hit.data;
+  return undefined;
+}
+
+function cacheSet(key, data) {
+  cache[key] = { data, ts: Date.now() };
+}
 
 function buildPresensiRange(pegawai) {
   const curYear = new Date().getFullYear();
@@ -238,28 +250,10 @@ async function resolvePegawai(member) {
   return pegawai || null;
 }
 
-async function computePersonalData(member) {
-  const pegawai = await resolvePegawai(member);
-  if (!pegawai) return { found: false };
-
+function buildBase(pegawai) {
   const id = pegawai.id;
   const nama = String(pegawai.nama || '');
   const nip = String(pegawai.nip || '');
-
-  const [kepangkatan, gajiBerkala, cuti, pensiun, presensi, mutasi, jabatan, sertifikasi, arsip, surat, riwayatStatus] = await Promise.all([
-    nip ? selScoped('kepangkatan', { filters: ['nip=eq.' + encodeURIComponent(nip)] }) : Promise.resolve([]),
-    nip ? selScoped('gaji_berkala', { filters: ['nip=eq.' + encodeURIComponent(nip)] }) : Promise.resolve([]),
-    nama ? selScoped('cuti', { filters: ['pemohon=eq.' + encodeURIComponent(nama)] }) : Promise.resolve([]),
-    selByName('pensiun', nip, nama),
-    selByName('presensi', nip, nama),
-    selScoped('mutasi', { eq: { col: 'pegawai_id', val: id } }),
-    selScoped('jabatan_pegawai', { eq: { col: 'pegawai_id', val: id } }),
-    selScoped('sertifikasi', { eq: { col: 'pegawai_id', val: id } }),
-    selScoped('arsip', { eq: { col: 'pegawai_id', val: id } }),
-    selScoped('surat_kepegawaian', { eq: { col: 'pegawai_id', val: id } }),
-    selScoped('riwayat_status', { eq: { col: 'pegawai_id', val: id } })
-  ]);
-
   const status = segJenis(pegawai.jenis);
   const unit = pegawai.unit || pegawai.sekolah || '';
 
@@ -311,119 +305,170 @@ async function computePersonalData(member) {
       unit
     },
     periodePppk: buildPeriodePppk(pegawai),
-    presensiRange: buildPresensiRange(pegawai),
-    pangkat: {
-      pangkat: pegawai.pangkat || '',
-      golongan: pegawai.golongan || '',
-      tmt: pegawai.tmt || '',
-      riwayat: kepangkatan.map((r) => ({
-        lama: r.lama || '',
-        baru: r.baru || '',
-        tmt: r.tmt || '',
-        status: r.status || ''
-      }))
-    },
-    kgb: gajiBerkala.map((r) => ({
-      gaji: r.gaji || '',
-      pangkat: r.pangkat || '',
-      tmtLama: r.tmt_lama || '',
-      tmtBerikut: r.tmt_berikut || '',
-      status: r.status || '',
-      indikator: kgbIndikator(r.tmt_berikut)
-    })),
-    mutasi: mutasi.map((r) => ({
-      id: r.id,
-      jenis: r.jenis || '',
-      asal: r.asal || '',
-      tujuan: r.tujuan || '',
-      tanggal: r.tanggal || '',
-      nomorSk: r.nomor_sk || '',
-      status: r.status || '',
-      keterangan: r.keterangan || '',
-      dokumen: r.dokumen || ''
-    })),
-    jabatan: jabatan.map((r) => ({
-      id: r.id,
-      jabatan: r.jabatan || '',
-      jenis: r.jenis || '',
-      tmt: r.tmt || '',
-      nomorSk: r.nomor_sk || '',
-      tanggalSk: r.tanggal_sk || '',
-      status: r.status || '',
-      keterangan: r.keterangan || ''
-    })),
-    sertifikasi: sertifikasi.map((r) => ({
-      id: r.id,
-      nama: r.nama_sertifikasi || '',
-      nomor: r.nomor || '',
-      bidang: r.bidang || '',
-      tahun: r.tahun || '',
-      status: r.status || '',
-      tunjangan: r.tunjangan || '',
-      statusBayar: r.status_bayar || '',
-      keterangan: r.keterangan || ''
-    })),
-    cuti: cuti.map((r) => ({
-      id: r.id,
-      pemohon: r.pemohon || '',
-      jenis: r.jenis || '',
-      mulai: r.mulai || '',
-      selesai: r.selesai || '',
-      lama: r.lama || '',
-      status: r.status || ''
-    })),
-    bup: Object.assign(buildBup(pegawai), {
-      riwayat: pensiun.map((r) => ({
-        bup: r.bup || '',
-        perkiraan: r.perkiraan || '',
-        status: r.status || ''
-      }))
-    }),
-    presensi: presensi.map((r) => ({
-      id: r.id,
-      nama: r.nama || '',
-      nip: r.nip || '',
-      tahun: r.tahun || '',
-      bulan: r.bulan || '',
-      file: r.file || '',
-      keterangan: r.keterangan || ''
-    })),
-    arsip: arsip.map((r) => ({
-      id: r.id,
-      kategori: r.kategori || '',
-      nama_dokumen: r.nama_dokumen || '',
-      file: r.file || '',
-      keterangan: r.keterangan || '',
-      created_at: r.created_at || ''
-    })),
-    surat: surat.map((r) => ({
-      id: r.id,
-      jenis: r.jenis || '',
-      nomor: r.nomor || '',
-      tanggal: r.tanggal || '',
-      perihal: r.perihal || '',
-      isi: r.isi || '',
-      status: r.status || ''
-    })),
-    riwayatStatus: riwayatStatus.map((r) => ({
-      id: r.id,
-      statusLama: r.status_lama || '',
-      statusBaru: r.status_baru || '',
-      tanggal: r.tanggal || '',
-      nomorSk: r.nomor_sk || '',
-      keterangan: r.keterangan || ''
-    }))
+    presensiRange: buildPresensiRange(pegawai)
   };
 }
 
-async function getPersonalData(member) {
-  const username = String((member && member.username) || '').trim();
-  const pid = member && member.pegawai_id;
-  const key = 'p' + (pid || username || 'anon');
-  const hit = cache[key];
-  if (hit && Date.now() - hit.ts <= CACHE_TTL) return hit.data;
-  const data = await computePersonalData(member);
-  cache[key] = { data, ts: Date.now() };
+// Muat satu bagian data yang dimuat malas (lazy). Mengembalikan null untuk
+// bagian yang tidak dikenal.
+async function loadPart(part, pegawai) {
+  const id = pegawai.id;
+  const nama = String(pegawai.nama || '');
+  const nip = String(pegawai.nip || '');
+
+  switch (part) {
+    case 'pangkat': {
+      const rows = nip ? await selScoped('kepangkatan', { filters: ['nip=eq.' + encodeURIComponent(nip)] }) : [];
+      return {
+        pangkat: pegawai.pangkat || '',
+        golongan: pegawai.golongan || '',
+        tmt: pegawai.tmt || '',
+        riwayat: rows.map((r) => ({
+          lama: r.lama || '',
+          baru: r.baru || '',
+          tmt: r.tmt || '',
+          status: r.status || ''
+        }))
+      };
+    }
+    case 'kgb': {
+      const rows = nip ? await selScoped('gaji_berkala', { filters: ['nip=eq.' + encodeURIComponent(nip)] }) : [];
+      return rows.map((r) => ({
+        gaji: r.gaji || '',
+        pangkat: r.pangkat || '',
+        tmtLama: r.tmt_lama || '',
+        tmtBerikut: r.tmt_berikut || '',
+        status: r.status || '',
+        indikator: kgbIndikator(r.tmt_berikut)
+      }));
+    }
+    case 'cuti': {
+      const rows = nama ? await selScoped('cuti', { filters: ['pemohon=eq.' + encodeURIComponent(nama)] }) : [];
+      return rows.map((r) => ({
+        id: r.id,
+        pemohon: r.pemohon || '',
+        jenis: r.jenis || '',
+        mulai: r.mulai || '',
+        selesai: r.selesai || '',
+        lama: r.lama || '',
+        status: r.status || ''
+      }));
+    }
+    case 'mutasi': {
+      const rows = await selScoped('mutasi', { eq: { col: 'pegawai_id', val: id } });
+      return rows.map((r) => ({
+        id: r.id,
+        jenis: r.jenis || '',
+        asal: r.asal || '',
+        tujuan: r.tujuan || '',
+        tanggal: r.tanggal || '',
+        nomorSk: r.nomor_sk || '',
+        status: r.status || '',
+        keterangan: r.keterangan || '',
+        dokumen: r.dokumen || ''
+      }));
+    }
+    case 'jabatan': {
+      const rows = await selScoped('jabatan_pegawai', { eq: { col: 'pegawai_id', val: id } });
+      return rows.map((r) => ({
+        id: r.id,
+        jabatan: r.jabatan || '',
+        jenis: r.jenis || '',
+        tmt: r.tmt || '',
+        nomorSk: r.nomor_sk || '',
+        tanggalSk: r.tanggal_sk || '',
+        status: r.status || '',
+        keterangan: r.keterangan || ''
+      }));
+    }
+    case 'sertifikasi': {
+      const rows = await selScoped('sertifikasi', { eq: { col: 'pegawai_id', val: id } });
+      return rows.map((r) => ({
+        id: r.id,
+        nama: r.nama_sertifikasi || '',
+        nomor: r.nomor || '',
+        bidang: r.bidang || '',
+        tahun: r.tahun || '',
+        status: r.status || '',
+        tunjangan: r.tunjangan || '',
+        statusBayar: r.status_bayar || '',
+        keterangan: r.keterangan || ''
+      }));
+    }
+    case 'arsip': {
+      const rows = await selScoped('arsip', { eq: { col: 'pegawai_id', val: id } });
+      return rows.map((r) => ({
+        id: r.id,
+        kategori: r.kategori || '',
+        nama_dokumen: r.nama_dokumen || '',
+        file: r.file || '',
+        keterangan: r.keterangan || '',
+        created_at: r.created_at || ''
+      }));
+    }
+    case 'surat': {
+      const rows = await selScoped('surat_kepegawaian', { eq: { col: 'pegawai_id', val: id } });
+      return rows.map((r) => ({
+        id: r.id,
+        jenis: r.jenis || '',
+        nomor: r.nomor || '',
+        tanggal: r.tanggal || '',
+        perihal: r.perihal || '',
+        isi: r.isi || '',
+        status: r.status || ''
+      }));
+    }
+    case 'presensi': {
+      const rows = await selByName('presensi', nip, nama);
+      return rows.map((r) => ({
+        id: r.id,
+        nama: r.nama || '',
+        nip: r.nip || '',
+        tahun: r.tahun || '',
+        bulan: r.bulan || '',
+        file: r.file || '',
+        keterangan: r.keterangan || ''
+      }));
+    }
+    case 'bup': {
+      const rows = await selByName('pensiun', nip, nama);
+      return Object.assign(buildBup(pegawai), {
+        riwayat: rows.map((r) => ({
+          bup: r.bup || '',
+          perkiraan: r.perkiraan || '',
+          status: r.status || ''
+        }))
+      });
+    }
+    default:
+      return null;
+  }
+}
+
+async function getBase(member) {
+  const pegawai = await resolvePegawai(member);
+  if (!pegawai) return { found: false };
+
+  const key = 'b' + pegawai.id;
+  const hit = cacheGet(key);
+  if (hit) return hit;
+
+  const data = buildBase(pegawai);
+  cacheSet(key, data);
+  return data;
+}
+
+async function getPart(member, part) {
+  const pegawai = await resolvePegawai(member);
+  if (!pegawai) return { found: false };
+
+  const key = 'p' + pegawai.id + ':' + part;
+  const hit = cacheGet(key);
+  if (hit !== undefined) return hit;
+
+  const data = await loadPart(part, pegawai);
+  if (data === null) return null;
+  cacheSet(key, data);
   return data;
 }
 
@@ -431,4 +476,4 @@ function invalidateCache() {
   Object.keys(cache).forEach((k) => delete cache[k]);
 }
 
-module.exports = { getPersonalData, invalidateCache, resolvePegawai, segJenis, formatTgl };
+module.exports = { getBase, getPart, invalidateCache, resolvePegawai, segJenis, formatTgl };

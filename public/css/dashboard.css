@@ -342,6 +342,23 @@ body { overflow-x: hidden; }
 	cursor: pointer;
 }
 
+.dash-sheet-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.dash-sheet-refresh {
+	width: 32px;
+	height: 32px;
+	border: none;
+	border-radius: 50%;
+	background: #eef2ff;
+	color: var(--dash-accent);
+	font-size: 14px;
+	cursor: pointer;
+}
+
 .dash-sheet-body {
 	flex: 1;
 	overflow-y: auto;

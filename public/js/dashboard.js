@@ -7,6 +7,10 @@
 	'use strict';
 
 	var DATA = null;
+	var CACHE = {};            // cache per Card (dimuat malas / lazy)
+	var LOADING = {};          // request yang sedang berjalan per Card
+	var SD = null;             // data bagian yang sedang terbuka
+	var BASE_SHEETS = { profil: 1, status: 1, pppk: 1 };
 	var PRES_FILTER = { tahun: String(new Date().getFullYear()) };
 	var ARSIP_FILTER = { q: '', kat: '' };
 	var CUR_SHEET = '';
@@ -54,7 +58,7 @@
 	}
 
 	function errBox() {
-		return '<div class="dash-empty-sm"><i class="fas fa-exclamation-triangle"></i><div>Data gagal dimuat.<br>Silakan coba lagi.</div><button class="dash-btn" onclick="window.location.reload()"><i class="fas fa-sync-alt"></i> Coba Lagi</button></div>';
+		return '<div class="dash-empty-sm"><i class="fas fa-exclamation-triangle"></i><div>Data gagal dimuat.<br>Silakan coba lagi.</div><button type="button" class="dash-btn" data-sheet-retry><i class="fas fa-sync-alt"></i> Coba Lagi</button></div>';
 	}
 
 	/* ---------------- Helper API & refresh ---------------- */
@@ -71,17 +75,44 @@
 		}).then(function (res) { return res.json(); });
 	}
 
-	function refreshData() {
-		return fetch('/api/dashboard', { headers: { 'Accept': 'application/json' } })
-			.then(function (res) { return res.json(); })
-			.then(function (json) {
-				if (json.ok && json.data) { DATA = json.data; renderHeader(); renderInfo(); return true; }
-				return false;
-			});
+	function fetchJson(url) {
+		return fetch(url, { headers: { 'Accept': 'application/json' } }).then(function (res) { return res.json(); });
+	}
+
+	function refreshBase() {
+		return fetchJson('/api/dashboard').then(function (json) {
+			if (json.ok && json.data && json.data.found) { DATA = json.data; renderHeader(); renderInfo(); return true; }
+			return false;
+		});
+	}
+
+	function refreshSheetData(key) {
+		delete CACHE[key];
+		if (LOADING[key]) return Promise.resolve(false);
+		LOADING[key] = true;
+		return fetchJson('/api/dashboard/' + key).then(function (json) {
+			LOADING[key] = false;
+			if (json.ok && json.data) { CACHE[key] = json.data; return true; }
+			return false;
+		}, function (err) {
+			LOADING[key] = false;
+			throw err;
+		});
+	}
+
+	// Setelah simpan/hapus: segarkan hanya data dasar + bagian yang berubah,
+	// bukan seluruh aplikasi (hindari request berulang).
+	function afterMutate(modul) {
+		var p = refreshBase();
+		if (modul && modul !== 'profil' && !BASE_SHEETS[modul]) {
+			p = p.then(function () { return refreshSheetData(modul); });
+		}
+		return p;
 	}
 
 	function reloadSheet() {
 		if (CUR_SHEET && RENDERERS[CUR_SHEET]) {
+			SD = BASE_SHEETS[CUR_SHEET] ? DATA : (CACHE[CUR_SHEET] || null);
 			try { RENDERERS[CUR_SHEET](); }
 			catch (e) { console.error('Sheet reload [' + CUR_SHEET + ']:', e); $('#sheetBody').innerHTML = errBox(); }
 		}
@@ -115,7 +146,11 @@
 
 	/* ---------------- Self-service: tombol & aksi item ---------------- */
 
-	var SELF_MODULS = { mutasi: 1, jabatan: 1, sertifikasi: 1, cuti: 1, surat: 1, arsip: 1 };
+	// Baris data untuk prefill form edit. Bagian lazy diambil dari cache-nya.
+	function sheetRows(modul) {
+		if (modul === 'profil') return null;
+		return CACHE[modul] || null;
+	}
 
 	function selfToolbar(modul, label) {
 		return '<div class="dash-filterbar"><button type="button" class="dash-btn primary" data-selfadd="' + modul + '"><i class="fas fa-plus"></i> ' + (label || 'Tambah Data') + '</button></div>';
@@ -133,9 +168,10 @@
 		var def = SELF_DEFS[modul];
 		if (!def) return;
 		var rec = null;
-		if (id && def.data && DATA[def.data]) {
-			for (var i = 0; i < DATA[def.data].length; i++) {
-				if (String(DATA[def.data][i].id) === String(id)) { rec = DATA[def.data][i]; break; }
+		var rows = sheetRows(def.data);
+		if (id && rows) {
+			for (var i = 0; i < rows.length; i++) {
+				if (String(rows[i].id) === String(id)) { rec = rows[i]; break; }
 			}
 		}
 		var html = '<div class="dash-form">' +
@@ -215,7 +251,7 @@
 		} else p = submitSelf(modul, id, payload);
 		p.then(function (res) {
 			if (res && res.ok) {
-				return refreshData().then(function () { reloadSheet(); });
+				return afterMutate(modul).then(function () { reloadSheet(); });
 			}
 			if (msg) msg.innerHTML = '<span class="dash-badge b-red">' + esc((res && res.error) || 'Gagal menyimpan.') + '</span>';
 			if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> Simpan'; }
@@ -229,7 +265,7 @@
 	function delSelf(modul, id) {
 		if (!window.confirm('Hapus data ini? Tindakan tidak dapat dibatalkan.')) return;
 		apiSelf('DELETE', '/' + modul + '/' + id).then(function (res) {
-			if (res && res.ok) { refreshData().then(reloadSheet); }
+			if (res && res.ok) { afterMutate(modul).then(reloadSheet); }
 			else window.alert((res && res.error) || 'Gagal menghapus data.');
 		}).catch(function (err) { console.error('SELF delete:', err); window.alert('Gagal menghapus data.'); });
 	}
@@ -370,7 +406,7 @@
 	}
 
 	function sheetPangkat() {
-		var p = DATA.pangkat;
+		var p = SD || {};
 		var hasRiwayat = p.riwayat && p.riwayat.length;
 		if (!p.pangkat && !p.golongan && !hasRiwayat) {
 			return '<div class="dash-sec">' + emptyBox('Data pangkat belum tersedia.') + '</div>';
@@ -386,10 +422,11 @@
 	}
 
 	function sheetKgb() {
-		if (!DATA.kgb.length) {
+		var k = SD || [];
+		if (!k.length) {
 			return '<div class="dash-sec">' + emptyBox('Data KGB belum tersedia.') + '</div>';
 		}
-		return DATA.kgb.map(function (r, i) {
+		return k.map(function (r, i) {
 			var chip = '';
 			if (r.indikator === 'Jatuh Tempo') chip = '<span class="dash-chip due">Jatuh tempo</span>';
 			else if (r.indikator === 'Mendekati') chip = '<span class="dash-chip near">Mendekati</span>';
@@ -402,11 +439,12 @@
 	}
 
 	function sheetMutasi() {
+		var list = SD || [];
 		var out = selfToolbar('mutasi');
-		if (!DATA.mutasi.length) {
+		if (!list.length) {
 			return out + '<div class="dash-sec">' + emptyBox('Belum ada data mutasi.') + '</div>';
 		}
-		return out + DATA.mutasi.map(function (m) {
+		return out + list.map(function (m) {
 			return '<div class="dash-timeline"><div class="dash-tl-item"><div class="tl-title">' + esc(m.jenis || 'Mutasi') + '</div>' +
 				'<div class="tl-sub">' + esc(m.asal) + ' → ' + esc(m.tujuan) + '</div>' +
 				'<div class="tl-sub">Unit: ' + esc(m.keterangan || '-') + '</div>' +
@@ -419,7 +457,7 @@
 	}
 
 	function sheetJabatan() {
-		var j = DATA.jabatan;
+		var j = SD || [];
 		var utama = j.filter(function (x) { return /utama/i.test(x.jenis); });
 		var tambahan = j.filter(function (x) { return !/utama/i.test(x.jenis); });
 		var out = selfToolbar('jabatan');
@@ -446,11 +484,12 @@
 	}
 
 	function sheetSertifikasi() {
+		var list = SD || [];
 		var out = selfToolbar('sertifikasi');
-		if (!DATA.sertifikasi.length) {
+		if (!list.length) {
 			return out + '<div class="dash-sec">' + emptyBox('Belum ada data sertifikasi & tunjangan.') + '</div>';
 		}
-		return out + DATA.sertifikasi.map(function (s) {
+		return out + list.map(function (s) {
 			return '<div class="dash-sec">' +
 				kv('Nama Sertifikasi', esc(s.nama)) + kv('Bidang Studi', esc(s.bidang)) +
 				kv('Nomor Sertifikat', esc(s.nomor)) + kv('Tahun Sertifikasi', esc(s.tahun)) +
@@ -462,11 +501,12 @@
 	}
 
 	function sheetCuti() {
+		var list = SD || [];
 		var out = selfToolbar('cuti');
-		if (!DATA.cuti.length) {
+		if (!list.length) {
 			return out + '<div class="dash-sec">' + emptyBox('Belum ada data cuti.') + '</div>';
 		}
-		return out + DATA.cuti.map(function (c) {
+		return out + list.map(function (c) {
 			return '<div class="dash-sec">' +
 				kv('Jenis Cuti', esc(c.jenis)) + kv('Tanggal Mulai', esc(fmtTanggal(c.mulai))) +
 				kv('Tanggal Selesai', esc(fmtTanggal(c.selesai))) + kv('Lama Cuti', esc(c.lama)) +
@@ -476,7 +516,7 @@
 	}
 
 	function sheetBup() {
-		var b = DATA.bup;
+		var b = SD || {};
 		var out = secTitle('Batas Usia Pensiun') +
 			kv('Tanggal Lahir', esc(fmtTanggal(b.tglLahir))) + kv('Status Kepegawaian', badge(b.jenis, STATUS_BADGE)) +
 			kv('Usia BUP', b.usiaBup ? esc(b.usiaBup + ' tahun') : '-') +
@@ -535,7 +575,7 @@
 
 	function presensiGrid() {
 		var tahun = PRES_FILTER.tahun;
-		var rows = DATA.presensi.filter(function (r) { return String(r.tahun) === tahun; });
+		var rows = (SD || []).filter(function (r) { return String(r.tahun) === tahun; });
 		var map = {};
 		rows.forEach(function (r) { map[String(r.bulan)] = r; });
 		var out = '<div class="pres-grid">';
@@ -578,12 +618,12 @@
 
 	function arsipKategoriList() {
 		var set = [];
-		DATA.arsip.forEach(function (r) { if (r.kategori && set.indexOf(r.kategori) === -1) set.push(r.kategori); });
+		(SD || []).forEach(function (r) { if (r.kategori && set.indexOf(r.kategori) === -1) set.push(r.kategori); });
 		return set.sort();
 	}
 
 	function arsipList() {
-		var rows = DATA.arsip.filter(function (r) {
+		var rows = (SD || []).filter(function (r) {
 			var q = ARSIP_FILTER.q.toLowerCase();
 			if (q && (r.nama_dokumen || '').toLowerCase().indexOf(q) === -1 && (r.keterangan || '').toLowerCase().indexOf(q) === -1) return false;
 			if (ARSIP_FILTER.kat && r.kategori !== ARSIP_FILTER.kat) return false;
@@ -615,11 +655,12 @@
 	}
 
 	function sheetSurat() {
+		var list = SD || [];
 		var out = selfToolbar('surat');
-		if (!DATA.surat.length) {
+		if (!list.length) {
 			return out + '<div class="dash-sec">' + emptyBox('Belum ada surat kepegawaian.') + '</div>';
 		}
-		return out + DATA.surat.map(function (s) {
+		return out + list.map(function (s) {
 			return '<div class="dash-sec">' +
 				kv('Jenis', esc(s.jenis)) + kv('Nomor', esc(s.nomor)) +
 				kv('Tanggal', esc(fmtTanggal(s.tanggal))) + kv('Perihal', esc(s.perihal)) +
@@ -670,14 +711,61 @@
 		$('#dashBackdrop').hidden = false;
 		sheet.hidden = false;
 		requestAnimationFrame(function () { requestAnimationFrame(function () { sheet.classList.add('open'); }); });
-		if (RENDERERS[key]) {
-			try {
-				RENDERERS[key]();
-			} catch (e) {
-				console.error('Sheet render [' + key + ']:', e);
-				$('#sheetBody').innerHTML = errBox();
-			}
+		renderSheet(key);
+	}
+
+	// Render sheet dari cache bila tersedia, atau muat (lazy) lalu cache.
+	function renderSheet(key) {
+		if (!RENDERERS[key]) return;
+		if (BASE_SHEETS[key]) {
+			SD = DATA;
+			rendererNow(key);
+			return;
 		}
+		if (CACHE[key]) {
+			SD = CACHE[key];
+			rendererNow(key);
+			return;
+		}
+		if (LOADING[key]) return;
+		LOADING[key] = true;
+		fetchJson('/api/dashboard/' + key).then(function (json) {
+			LOADING[key] = false;
+			if (!json.ok || json.data == null) throw new Error(json.error || 'Gagal memuat data');
+			CACHE[key] = json.data;
+			if (CUR_SHEET !== key) return;
+			SD = CACHE[key];
+			rendererNow(key);
+		}).catch(function (err) {
+			LOADING[key] = false;
+			console.error('Sheet load [' + key + ']:', err);
+			if (CUR_SHEET === key) $('#sheetBody').innerHTML = errBox();
+		});
+	}
+
+	function rendererNow(key) {
+		try { RENDERERS[key](); }
+		catch (e) {
+			console.error('Sheet render [' + key + ']:', e);
+			$('#sheetBody').innerHTML = errBox();
+		}
+	}
+
+	// Muat ulang hanya data sheet yang sedang dibuka (refresh manual).
+	function refreshCurrentSheet() {
+		if (!CUR_SHEET || !RENDERERS[CUR_SHEET]) return;
+		var key = CUR_SHEET;
+		$('#sheetBody').innerHTML = '<div class="dash-empty-sm"><i class="fas fa-circle-notch fa-spin"></i><div>Memuat ulang…</div></div>';
+		var p = BASE_SHEETS[key] ? refreshBase() : refreshSheetData(key);
+		p.then(function (ok) {
+			if (CUR_SHEET !== key) return;
+			if (!ok) { $('#sheetBody').innerHTML = errBox(); return; }
+			SD = BASE_SHEETS[key] ? DATA : CACHE[key];
+			rendererNow(key);
+		}).catch(function (err) {
+			console.error('Sheet refresh [' + key + ']:', err);
+			if (CUR_SHEET === key) $('#sheetBody').innerHTML = errBox();
+		});
 	}
 
 	function closeSheet() {
@@ -720,6 +808,22 @@
 		$('#dashSkeleton').hidden = true;
 		$('#dashError').hidden = true;
 		$('#dashContent').hidden = false;
+		preloadLight();
+	}
+
+	// Preload ringan bagian yang kemungkinan besar akan dibuka (Jabatan).
+	// Status Kepegawaian & Periode PPPK sudah ada di data dasar, tidak
+	// diulang. Tidak pernah memuat file/arsip besar di sini.
+	function preloadLight() {
+		if (CACHE.jabatan || LOADING.jabatan) return;
+		var run = function () {
+			if (CACHE.jabatan || LOADING.jabatan) return;
+			fetchJson('/api/dashboard/jabatan').then(function (json) {
+				if (json.ok && json.data) CACHE.jabatan = json.data;
+			}).catch(function () { /* abaikan: dimuat saat Card dibuka */ });
+		};
+		if (window.requestIdleCallback) window.requestIdleCallback(run, { timeout: 3000 });
+		else setTimeout(run, 1200);
 	}
 
 	function loadData() {
@@ -750,7 +854,7 @@
 		var body = $('#sheetBody');
 		body.addEventListener('click', function (ev) {
 			var t = ev.target;
-			while (t && t !== body && !(t.getAttribute && (t.getAttribute('data-selfadd') || t.getAttribute('data-selfedit') || t.getAttribute('data-selfdel') || t.getAttribute('data-self-save') || t.getAttribute('data-self-cancel') || t.getAttribute('data-pres-year')))) t = t.parentNode;
+			while (t && t !== body && !(t.getAttribute && (t.getAttribute('data-selfadd') || t.getAttribute('data-selfedit') || t.getAttribute('data-selfdel') || t.getAttribute('data-self-save') || t.getAttribute('data-self-cancel') || t.getAttribute('data-pres-year') || t.getAttribute('data-sheet-retry')))) t = t.parentNode;
 			if (!t || t === body) return;
 			if (t.getAttribute('data-selfadd') !== null) { showSelfForm(t.getAttribute('data-selfadd'), null); }
 			else if (t.getAttribute('data-selfedit') !== null) { showSelfForm(t.getAttribute('data-selfedit'), t.getAttribute('data-id')); }
@@ -758,6 +862,7 @@
 			else if (t.getAttribute('data-self-save') !== null) { saveSelf(t.getAttribute('data-self-save'), t.getAttribute('data-id')); }
 			else if (t.getAttribute('data-self-cancel') !== null) { reloadSheet(); }
 			else if (t.getAttribute('data-pres-year') !== null) { PRES_FILTER.tahun = t.getAttribute('data-pres-year'); reloadPresensiGrid(); }
+			else if (t.getAttribute('data-sheet-retry') !== null) { refreshCurrentSheet(); }
 		});
 		body.addEventListener('change', function (ev) {
 			var inp = ev.target;
@@ -811,6 +916,7 @@
 		$('#sheetClose').addEventListener('click', closeSheet);
 		$('#dashBackdrop').addEventListener('click', closeSheet);
 		$('#dashRetry').addEventListener('click', loadData);
+		$('#sheetRefresh').addEventListener('click', refreshCurrentSheet);
 
 		sheetDelegation();
 
