@@ -142,6 +142,26 @@ async function pppkFetchRow(id) {
   return rows[0] || null;
 }
 
+// Pastikan referensi pegawai & data turunannya (nip/nama/nik) konsisten
+// dengan tabel pegawai. Return pesan error, atau null bila valid.
+async function pegawaiMustMatch(body) {
+  const id = body.pegawai_id;
+  if (id === undefined || id === null || id === '') return null;
+  const rows = await supabase.select('pegawai', { eq: { col: 'id', val: id } });
+  const peg = rows[0];
+  if (!peg) return 'Pegawai tidak ditemukan.';
+  if (body.nip !== undefined && String(body.nip || '') !== String(peg.nip || '')) {
+    return 'NIP tidak sesuai dengan data pegawai.';
+  }
+  if (body.nama !== undefined && String(body.nama || '') !== String(peg.nama || '')) {
+    return 'Nama tidak sesuai dengan data pegawai.';
+  }
+  if (body.nik !== undefined && String(body.nik || '') !== String(peg.nik || '')) {
+    return 'NIK tidak sesuai dengan data pegawai.';
+  }
+  return null;
+}
+
 // Simpan snapshot satu periode ke tabel riwayat (periode lama tidak pernah
 // dihapus, selalu tersimpan sebagai riwayat).
 async function pppkRiwayat(periodeId, pegawaiId, row, aksi, member) {
@@ -187,20 +207,6 @@ async function audit(modul, aksi, recordId, detail, member) {
   }
 }
 
-// Status otomatis: AKTIF / SEGERA BERAKHIR (<= 90 hari) / BERAKHIR.
-function calcStatus(row) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const mulai = row.tanggal_mulai ? new Date(row.tanggal_mulai + 'T00:00:00') : null;
-  const berakhir = row.tanggal_berakhir ? new Date(row.tanggal_berakhir + 'T00:00:00') : null;
-  if (!berakhir) return 'AKTIF';
-  const sisa = Math.floor((berakhir.getTime() - today.getTime()) / 86400000);
-  if (berakhir < today) return 'BERAKHIR';
-  if (mulai && mulai > today) return 'BELUM AKTIF';
-  if (sisa <= 90) return 'SEGERA BERAKHIR';
-  return 'AKTIF';
-}
-
 router.post('/pppk', async (req, res) => {
   const member = pppkMember(req, res);
   if (!member) return;
@@ -215,6 +221,8 @@ router.post('/pppk', async (req, res) => {
     }
     sekolah = member.unit;
   }
+  const mErr = await pegawaiMustMatch(body);
+  if (mErr) return res.status(400).json({ ok: false, error: mErr });
   const data = {
     pegawai_id: body.pegawai_id || null,
     nip: body.nip || '',
@@ -284,6 +292,11 @@ router.put('/pppk/:id', async (req, res) => {
       updated_at: nowIso(),
       updated_by: actorName(member)
     };
+    if (member.role === 'staff') {
+      data.sekolah = member.unit;
+    }
+    const mErr = await pegawaiMustMatch(body);
+    if (mErr) return res.status(400).json({ ok: false, error: mErr });
     const row = await supabase.update('periode_pppk', req.params.id, data);
     await pppkRiwayat(row.id, row.pegawai_id, row, 'UBAH', member);
     await audit('periode_pppk', 'UBAH', row.id, 'Periode PPPK #' + row.id + ' (' + row.nama + ')', member);
@@ -365,6 +378,9 @@ router.get('/pppk/:id/riwayat', async (req, res) => {
   try {
     const cur = await pppkFetchRow(req.params.id);
     if (!cur) return res.status(404).json({ ok: false, error: 'Data periode tidak ditemukan.' });
+    if (member.role === 'staff' && (!member.unit || cur.sekolah !== member.unit)) {
+      return res.status(403).json({ ok: false, error: 'Anda hanya dapat melihat riwayat data sekolah Anda.' });
+    }
     const periode = await supabase.select('periode_pppk', { eq: { col: 'pegawai_id', val: cur.pegawai_id }, order: 'periode_ke.desc' });
     const riwayat = await supabase.select('riwayat_periode_pppk', { eq: { col: 'pegawai_id', val: cur.pegawai_id }, order: 'id.desc' });
     return res.json({ ok: true, periode, riwayat });

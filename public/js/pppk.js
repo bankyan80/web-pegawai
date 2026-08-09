@@ -522,6 +522,30 @@
       .catch(function () { toast('Terjadi kesalahan saat menghapus.'); });
   }
 
+  function exportXls() {
+    var rows = filtered();
+    var headers = ['Nama Pegawai', 'NIP/NI', 'NIK', 'Sekolah', 'Jabatan', 'Jenis PPPK', 'Periode Ke', 'No. Perjanjian', 'Tgl. Mulai', 'Tgl. Berakhir', 'Sisa Periode', 'Status'];
+    var csv = headers.join(';') + '\r\n';
+    rows.forEach(function (r) {
+      var vals = [
+        r.nama, r.nip, r.nik, r.sekolah, r.jabatan, r.jenis,
+        'Ke-' + r.periodeKe, r.nomorPerjanjian, r.tanggalMulai, r.tanggalBerakhir,
+        sisaText(r), statusOf(r)
+      ];
+      csv += vals.map(function (v) {
+        return '"' + String(v === undefined || v === null ? '' : v).replace(/"/g, '""') + '"';
+      }).join(';') + '\r\n';
+    });
+    var blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'periode-pppk.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    toast('Data berhasil diexport ke CSV (buka dengan Excel).');
+  }
+
   document.addEventListener('input', function (e) {
     if (e.target.classList.contains('pppk-search')) {
       state.search = e.target.value;
