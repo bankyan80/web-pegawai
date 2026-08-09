@@ -45,7 +45,6 @@ INSERT INTO menu (id, parent_id, label, url, icon, urutan, for_administrator, fo
   (24, 3,   'Izin Cuti',         '/izin-cuti',      'fa-plane',       5, TRUE,  TRUE,  FALSE, FALSE, 'Aktif'),
   (25, 3,   'Izin Cerai',        '/izin-cerai',     'fa-file-signature', 6, TRUE, TRUE, FALSE, FALSE, 'Aktif'),
   (26, 3,   'SLKS',              '/slks',           'fa-chart-line',  7, TRUE,  TRUE,  FALSE, FALSE, 'Aktif'),
-  (27, 3,   'Periode PPPK',      '/periode-pppk',   'fa-file-signature', 8, TRUE, TRUE, TRUE,  FALSE, 'Aktif'),
 
   -- Status Kepegawaian
   (30, 4,   'Pengadaan Pegawai', '/pengadaan-pegawai', 'fa-user-plus', 1, TRUE, TRUE, FALSE, FALSE, 'Aktif'),
@@ -53,6 +52,7 @@ INSERT INTO menu (id, parent_id, label, url, icon, urutan, for_administrator, fo
   (32, 4,   'Pindah tugas',      '/pindah-tugas',   'fa-exchange-alt', 3, TRUE, TRUE,  FALSE, FALSE, 'Aktif'),
   (33, 4,   'Penempatan tugas',  '/penempatan-tugas', 'fa-map-marker-alt', 4, TRUE, TRUE, FALSE, FALSE, 'Aktif'),
   (34, 4,   'Disiplin pegawai',  '/disiplin-pegawai', 'fa-gavel',     5, TRUE,  TRUE,  FALSE, FALSE, 'Aktif'),
+  (27, 4,   'Periode PPPK',      '/periode-pppk',   'fa-file-signature', 6, TRUE, TRUE, TRUE,  FALSE, 'Aktif'),
 
   -- Pengembangan Pegawai
   (40, 5,   'Diklat Struktural', '/diklat-struktural', 'fa-award',     1, TRUE, TRUE, FALSE, FALSE, 'Aktif'),
