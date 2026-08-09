@@ -1667,6 +1667,29 @@ router.get('/periode-pppk', async (req, res, next) => {
     return ke;
   }
 
+  // Rentang periode yang sedang berjalan (mulai & akhir periode yang memuat 'today').
+  // Untuk status BERAKHIR, periode itu otomatis periode berikutnya (ke-2, dst),
+  // sehingga Tgl Mulai/Tgl Akhir & sisa mengikuti periode berjalan, bukan periode awal.
+  function pppkPeriodeRentang(tmt, masa, today) {
+    if (!pppkValidTmt(tmt)) return null;
+    const m = String(tmt).slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return null;
+    const base = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+    let ke = 1;
+    for (;;) {
+      const s = new Date(base);
+      s.setUTCFullYear(s.getUTCFullYear() + (ke - 1) * masa);
+      const e = new Date(base);
+      e.setUTCFullYear(e.getUTCFullYear() + ke * masa);
+      const endDate = new Date(e.toISOString().slice(0, 10) + 'T00:00:00');
+      if (today <= endDate) {
+        return { mulai: s.toISOString().slice(0, 10), akhir: e.toISOString().slice(0, 10) };
+      }
+      ke++;
+      if (ke > 500) return { mulai: s.toISOString().slice(0, 10), akhir: e.toISOString().slice(0, 10) };
+    }
+  }
+
   // Single source of truth: seluruh periode diturunkan dari Profil Pegawai.
   let list = (D.pegawai || [])
     .filter((p) => /pppk/i.test(String(p.jenis || '')))
@@ -1674,13 +1697,21 @@ router.get('/periode-pppk', async (req, res, next) => {
       const masa = pppkMasaTahun(p.jenis);
       const tmt = pppkValidTmt(p.tmt) ? String(p.tmt).slice(0, 10) : '';
       const berakhir = tmt ? pppkHitungBerakhir(tmt, masa) : '';
+      let tanggalMulai = tmt;
+      let tanggalBerakhir = berakhir;
       let sisa = null;
       let status = 'BELUM LENGKAP';
       if (tmt && berakhir) {
         const md = new Date(tmt + 'T00:00:00');
-        const bd = new Date(berakhir + 'T00:00:00');
+        const b1 = new Date(berakhir + 'T00:00:00');
+        const rentang = pppkPeriodeRentang(tmt, masa, today);
+        if (rentang) {
+          tanggalMulai = rentang.mulai;
+          tanggalBerakhir = rentang.akhir;
+        }
+        const bd = new Date(tanggalBerakhir + 'T00:00:00');
         sisa = Math.floor((bd - today) / 86400000);
-        if (bd < today) status = 'BERAKHIR';
+        if (b1 < today) status = 'BERAKHIR';
         else if (md > today) status = 'BELUM AKTIF';
         else if (sisa <= 90) status = 'SEGERA BERAKHIR';
         else status = 'AKTIF';
@@ -1698,8 +1729,8 @@ router.get('/periode-pppk', async (req, res, next) => {
         masaTahun: masa,
         masaLabel: masa + ' Tahun',
         periodeKe: tmt ? pppkPeriodeKe(tmt, masa, today) : null,
-        tanggalMulai: tmt,
-        tanggalBerakhir: berakhir,
+        tanggalMulai,
+        tanggalBerakhir,
         sisa,
         status
       };

@@ -100,9 +100,22 @@
 
   function sisaText(r) {
     if (statusOf(r) === 'BELUM LENGKAP') return '-';
-    if (statusOf(r) === 'BERAKHIR') return 'Habis';
-    var s = sisaOf(r);
-    return s === null || s === undefined ? '-' : s + ' hari';
+    var endStr = r.tanggalBerakhir;
+    if (!endStr) {
+      var s = sisaOf(r);
+      return s === null || s === undefined ? '-' : s + ' hari';
+    }
+    var end = new Date(endStr + 'T00:00:00');
+    var t = today0();
+    var months = (end.getFullYear() - t.getFullYear()) * 12 + (end.getMonth() - t.getMonth());
+    if (end.getDate() < t.getDate()) months -= 1;
+    if (months < 0) months = 0;
+    var years = Math.floor(months / 12);
+    var rem = months % 12;
+    if (years > 0) return years + ' tahun' + (rem > 0 ? ' ' + rem + ' bulan' : '');
+    if (rem > 0) return rem + ' bulan';
+    var sd = sisaOf(r);
+    return sd === null || sd === undefined ? '-' : sd + ' hari';
   }
 
   function filtered() {
