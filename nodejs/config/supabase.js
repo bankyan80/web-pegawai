@@ -17,6 +17,27 @@ function param(key, val) {
   return key + '=' + encodeURIComponent(val);
 }
 
+// Retry ringan untuk error jaringan transien (mis. Supabase sesaat tak terjangkau).
+// Hanya dipakai untuk operasi SELECT yang idempotent.
+async function fetchRetry(url, options, tries = 3) {
+  let lastErr;
+  for (let i = 0; i < tries; i++) {
+    try {
+      const res = await fetch(url, options);
+      if (res.status >= 500 && i < tries - 1) {
+        lastErr = new Error('HTTP ' + res.status);
+        await new Promise((r) => setTimeout(r, 400 * (i + 1)));
+        continue;
+      }
+      return res;
+    } catch (err) {
+      lastErr = err;
+      if (i < tries - 1) await new Promise((r) => setTimeout(r, 400 * (i + 1)));
+    }
+  }
+  throw lastErr;
+}
+
 class Supabase {
   constructor() {
     this.url = SUPABASE_URL;
@@ -35,7 +56,7 @@ class Supabase {
     }
     if (order) qs += '&order=' + order;
     if (limit) qs += '&limit=' + limit;
-    const res = await fetch(this.url + '/rest/v1/' + table + '?' + qs, { headers: H() });
+    const res = await fetchRetry(this.url + '/rest/v1/' + table + '?' + qs, { headers: H() });
     if (!res.ok) throw new Error(await errText(res, 'SELECT ' + table));
     return res.json();
   }

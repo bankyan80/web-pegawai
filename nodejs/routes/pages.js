@@ -323,6 +323,12 @@ function kepBadge(v) {
 function countBy(arr, key, val) {
   return arr.filter((x) => x[key] === val).length;
 }
+function isPppk(jenis) {
+  return /pppk/i.test(String(jenis || ''));
+}
+function isPppkParuhWaktu(jenis) {
+  return /paruh waktu/i.test(String(jenis || ''));
+}
 
 function requireLogin(req, res, next) {
   if (!req.session.MEMBER) {
@@ -398,8 +404,8 @@ router.get('/profil-pegawai', async (req, res, next) => {
     stats: [
       { label: 'Total Pegawai', value: D.pegawai.length, icon: 'fa-users', color: 'blue' },
       { label: 'PNS', value: countBy(D.pegawai, 'jenis', 'PNS'), icon: 'fa-user-tie', color: 'violet' },
-      { label: 'PPPK', value: countBy(D.pegawai, 'jenis', 'PPPK'), icon: 'fa-user-graduate', color: 'green' },
-      { label: 'PPPK Paruh Waktu', value: countBy(D.pegawai, 'jenis', 'PPPK Paruh Waktu'), icon: 'fa-user-clock', color: 'cyan' },
+      { label: 'PPPK', value: D.pegawai.filter((x) => isPppk(x.jenis) && !isPppkParuhWaktu(x.jenis)).length, icon: 'fa-user-graduate', color: 'green' },
+      { label: 'PPPK Paruh Waktu', value: D.pegawai.filter((x) => isPppk(x.jenis) && isPppkParuhWaktu(x.jenis)).length, icon: 'fa-user-clock', color: 'cyan' },
       { label: 'Honorer', value: countBy(D.pegawai, 'jenis', 'Honorer'), icon: 'fa-user-cog', color: 'amber' }
     ],
     toolbar: {
@@ -1612,51 +1618,68 @@ function pppkToday() {
   const d = new Date();
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
-function pppkStatus(row) {
-  const today = pppkToday();
-  const mulai = row.tanggalMulai ? new Date(row.tanggalMulai + 'T00:00:00') : null;
-  const berakhir = row.tanggalBerakhir ? new Date(row.tanggalBerakhir + 'T00:00:00') : null;
-  if (berakhir && berakhir < today) return 'BERAKHIR';
-  if (mulai && mulai > today) return 'BELUM AKTIF';
-  if (berakhir) {
-    const sisa = Math.floor((berakhir - today) / 86400000);
-    if (sisa <= 90) return 'SEGERA BERAKHIR';
-  }
-  return 'AKTIF';
-}
-function pppkSisa(row) {
-  const today = pppkToday();
-  const berakhir = row.tanggalBerakhir ? new Date(row.tanggalBerakhir + 'T00:00:00') : null;
-  if (!berakhir) return null;
-  return Math.floor((berakhir - today) / 86400000);
-}
-function pppkLama(row) {
-  const mulai = row.tanggalMulai ? new Date(row.tanggalMulai + 'T00:00:00') : null;
-  const berakhir = row.tanggalBerakhir ? new Date(row.tanggalBerakhir + 'T00:00:00') : null;
-  if (!mulai || !berakhir) return '-';
-  const hari = Math.round((berakhir - mulai) / 86400000) + 1;
-  const bulan = Math.floor(hari / 30);
-  return (bulan > 0 ? bulan + ' bln ' : '') + (hari % 30) + ' hr';
-}
 
 router.get('/periode-pppk', async (req, res, next) => {
   const member = req.session.MEMBER;
-  const D = await kepdata.getKepData(['periodePppk', 'riwayatPppk', 'pegawai']);
+  const D = await kepdata.getKepData(['pegawai']);
   const role = member ? member.role : '';
   const unit = member ? String(member.unit || '') : '';
 
-  const byId = {};
-  (D.pegawai || []).forEach((p) => { byId[Number(p.id)] = p; });
+  const today = pppkToday();
 
-  let list = (D.periodePppk || []).map((x) => {
-    const peg = byId[Number(x.pegawaiId)];
-    return Object.assign({}, x, {
-      pegawaiNama: peg ? peg.nama : x.nama,
-      status: pppkStatus(x),
-      sisa: pppkSisa(x),
-      lama: pppkLama(x)
+  function pppkMasaTahun(jenis) {
+    return /paruh waktu/i.test(String(jenis || '')) ? 1 : 5;
+  }
+
+  function pppkValidTmt(v) {
+    return /^\d{4}-\d{2}-\d{2}$/.test(String(v || '').trim());
+  }
+
+  function pppkHitungBerakhir(mulai, masa) {
+    const m = String(mulai || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return '';
+    const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+    d.setUTCFullYear(d.getUTCFullYear() + masa);
+    return d.toISOString().slice(0, 10);
+  }
+
+  // Single source of truth: seluruh periode diturunkan dari Profil Pegawai.
+  let list = (D.pegawai || [])
+    .filter((p) => /pppk/i.test(String(p.jenis || '')))
+    .map((p) => {
+      const masa = pppkMasaTahun(p.jenis);
+      const tmt = pppkValidTmt(p.tmt) ? String(p.tmt).slice(0, 10) : '';
+      const berakhir = tmt ? pppkHitungBerakhir(tmt, masa) : '';
+      let sisa = null;
+      let status = 'BELUM LENGKAP';
+      if (tmt && berakhir) {
+        const md = new Date(tmt + 'T00:00:00');
+        const bd = new Date(berakhir + 'T00:00:00');
+        sisa = Math.floor((bd - today) / 86400000);
+        if (bd < today) status = 'BERAKHIR';
+        else if (md > today) status = 'BELUM AKTIF';
+        else if (sisa <= 90) status = 'SEGERA BERAKHIR';
+        else status = 'AKTIF';
+      }
+      return {
+        id: p.id,
+        nama: p.nama,
+        nip: p.nip,
+        nik: p.nik,
+        nuptk: '',
+        statusKepegawaian: isPppkParuhWaktu(p.jenis) ? 'PPPK Paruh Waktu' : 'PPPK',
+        jabatan: p.jabatan,
+        sekolah: p.unit || p.sekolah || '',
+        tmt,
+        masaTahun: masa,
+        masaLabel: masa + ' Tahun',
+        tanggalMulai: tmt,
+        tanggalBerakhir: berakhir,
+        sisa,
+        status
+      };
     });
-  });
+
   if (role === 'staff') {
     list = list.filter((x) => x.sekolah === unit);
   }
@@ -1666,55 +1689,26 @@ router.get('/periode-pppk', async (req, res, next) => {
     return ta - tb;
   });
 
-  const notif = [];
-  list.forEach((x) => {
-    if (x.status === 'BERAKHIR') {
-      notif.push({ level: 'merah', text: 'Periode ' + x.nama + ' (periode ke-' + x.periodeKe + ') telah berakhir pada ' + x.tanggalBerakhir + '.' });
-    } else if (x.sisa !== null && x.sisa <= 30) {
-      notif.push({ level: 'oranye', text: 'Periode ' + x.nama + ' akan berakhir dalam ' + x.sisa + ' hari (' + x.tanggalBerakhir + ').' });
-    } else if (x.sisa !== null && x.sisa <= 90) {
-      notif.push({ level: 'kuning', text: 'Periode ' + x.nama + ' akan berakhir dalam ' + x.sisa + ' hari.' });
-    }
-  });
-
-  const jenisSet = new Set();
+  const kepegList = ['PPPK', 'PPPK Paruh Waktu'];
+  const statusList = ['AKTIF', 'BELUM AKTIF', 'SEGERA BERAKHIR', 'BERAKHIR', 'BELUM LENGKAP'];
   const sekolahSet = new Set();
   const tahunSet = new Set();
   list.forEach((x) => {
-    if (x.jenis) jenisSet.add(x.jenis);
     if (x.sekolah) sekolahSet.add(x.sekolah);
-    if (x.tanggalBerakhir) tahunSet.add(x.tanggalBerakhir.slice(0, 4));
+    if (x.tmt) tahunSet.add(x.tmt.slice(0, 4));
   });
-
-  let pegawaiOptions = D.pegawai || [];
-  if (role === 'staff') {
-    pegawaiOptions = pegawaiOptions.filter((p) => String(p.sekolah || '') === unit);
-  }
-  pegawaiOptions = pegawaiOptions.map((p) => ({
-    id: p.id,
-    nama: p.nama,
-    nip: p.nip,
-    nik: p.nik,
-    sekolah: p.sekolah,
-    jabatan: p.jabatan
-  }));
 
   const cfg = {
     breadcrumb: ['Layanan Kepegawaian', 'Periode PPPK'],
     title: 'Periode PPPK',
-    desc: 'Kelola periode masa kerja PPPK dan pantau masa berakhirnya',
-    primaryBtn: { label: 'Tambah Periode', modal: 'modalPppk', icon: 'fa-plus' },
-    notif,
+    desc: 'Daftar periode masa kerja PPPK diturunkan otomatis dari Profil Pegawai',
     pppk: {
       rows: list,
-      jenisList: Array.from(jenisSet),
+      kepegList,
+      statusList,
       sekolahList: Array.from(sekolahSet),
-      tahunList: Array.from(tahunSet).sort(),
-      canDelete: role === 'administrator',
-      canExtend: role === 'administrator' || role === 'manager',
-      isStaff: role === 'staff'
-    },
-    pegawaiOptions
+      tahunList: Array.from(tahunSet).sort()
+    }
   };
   return renderModul(res, req, 'kep_pppk', cfg);
 });

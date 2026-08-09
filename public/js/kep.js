@@ -70,9 +70,7 @@
       console.log('[KEP] tableModul("' + tid + '") → matched modPrs pattern → presensi');
       return 'presensi';
     }
-    if (tid && tid.indexOf('tblPppk') === 0) return 'periode_pppk';
-    if (tid && tid.indexOf('modPppk') === 0) return 'periode_pppk';
-    
+
     console.error('[KEP] tableModul("' + tid + '") → NO MATCH! Returning empty string');
     return '';
   }

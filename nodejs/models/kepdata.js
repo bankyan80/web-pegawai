@@ -22,8 +22,6 @@ const TABLES = [
   'diklat_teknis',
   'izin_belajar',
   'tugas_belajar',
-  'periode_pppk',
-  'riwayat_periode_pppk',
   'users'
 ];
 
@@ -37,9 +35,7 @@ const TABLE_KEYS = {
   diklat_struktural: 'diklatStruktural',
   diklat_teknis: 'diklatTeknis',
   izin_belajar: 'izinBelajar',
-  tugas_belajar: 'tugasBelajar',
-  periode_pppk: 'periodePppk',
-  riwayat_periode_pppk: 'riwayatPppk'
+  tugas_belajar: 'tugasBelajar'
 };
 
 // Reverse: key views -> nama tabel.
@@ -52,30 +48,7 @@ Object.keys(TABLE_KEYS).forEach((t) => {
 const RENAME = {
   gaji_berkala: { tmt_lama: 'tmtLama', tmt_berikut: 'tmtBerikut' },
   slks: { masa_kerja: 'masaKerja' },
-  pensiun: { tgl_lahir: 'tglLahir' },
-  periode_pppk: {
-    pegawai_id: 'pegawaiId',
-    nomor_perjanjian: 'nomorPerjanjian',
-    tanggal_perjanjian: 'tanggalPerjanjian',
-    tanggal_mulai: 'tanggalMulai',
-    tanggal_berakhir: 'tanggalBerakhir',
-    periode_ke: 'periodeKe',
-    created_at: 'createdAt',
-    updated_at: 'updatedAt',
-    created_by: 'createdBy',
-    updated_by: 'updatedBy'
-  },
-  riwayat_periode_pppk: {
-    periode_id: 'periodeId',
-    pegawai_id: 'pegawaiId',
-    periode_ke: 'periodeKe',
-    nomor_perjanjian: 'nomorPerjanjian',
-    tanggal_perjanjian: 'tanggalPerjanjian',
-    tanggal_mulai: 'tanggalMulai',
-    tanggal_berakhir: 'tanggalBerakhir',
-    created_at: 'createdAt',
-    updated_at: 'updatedAt'
-  }
+  pensiun: { tgl_lahir: 'tglLahir' }
 };
 
 // Key turunan (bukan tabel).
