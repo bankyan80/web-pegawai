@@ -46,7 +46,18 @@
     tblDiklatS: 'diklat_struktural',
     tblDiklatT: 'diklat_teknis',
     tblBelajar: 'izin_belajar',
-    tblTugas: 'tugas_belajar'
+    tblTugas: 'tugas_belajar',
+    tblMutasi: 'mutasi',
+    tblJabatan: 'jabatan',
+    tblSertifikasi: 'sertifikasi',
+    tblArsip: 'arsip',
+    tblSuratKep: 'suratkepegawaian',
+    tblRiwayat: 'riwayat_status',
+    tblStsAll: 'pegawai',
+    tblStsPns: 'pegawai',
+    tblStsPppk: 'pegawai',
+    tblStsPw: 'pegawai',
+    tblStsNon: 'pegawai'
   };
 
   function tableModul(tid) {
@@ -279,6 +290,9 @@
       openDetailModal(tr);
     } else if (act === 'cetak') {
       window.print();
+    } else if (act === 'profil') {
+      if (record.id) window.location.href = '/profil-pegawai/detail/' + record.id;
+      else kepToast('Profil pegawai tidak ditemukan.');
     } else if (act === 'unduh') {
       var fileUrl = record.file || '';
       if (fileUrl) {
@@ -382,7 +396,9 @@
     if (pbtn) window.print();
   });
 
-  // Auto-fill NIP saat memilih nama pegawai pada modal (data atribut nip-map).
+  // Auto-fill NIP & pegawai_id saat memilih nama pegawai pada modal.
+  // - select[name="nama"] -> data-nip-map (nama -> NIP) mengisi input nip.
+  // - data-pegawai-map (nama -> id) mengisi input pegawai_id.
   document.addEventListener('change', function (e) {
     var sel = e.target.closest('select[name="nama"]');
     if (!sel) return;
@@ -392,6 +408,10 @@
     try { map = JSON.parse(form.getAttribute('data-nip-map') || '{}'); } catch (err) {}
     var nipInput = form.querySelector('input[name="nip"]');
     if (nipInput && map[sel.value]) nipInput.value = map[sel.value];
+    var pegMap = {};
+    try { pegMap = JSON.parse(form.getAttribute('data-pegawai-map') || '{}'); } catch (err) {}
+    var pidInput = form.querySelector('input[name="pegawai_id"]');
+    if (pidInput && pegMap[sel.value]) pidInput.value = pegMap[sel.value];
   });
 
   // Ubah <select data-searchable> menjadi pilihan dengan pencarian (typeahead).

@@ -5,7 +5,7 @@
 				<h5 class="modal-title"><i class="fas fa-pen-square"></i> <span class="kep-modal-title"><%= modal.title %></span></h5>
 				<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
 			</div>
-			<form class="kep-form" data-modal="<%= modal.id %>" data-table="<%= modal.table || '' %>" data-nip-map='<%= modal.nipMap ? JSON.stringify(modal.nipMap) : '' %>' novalidate>
+			<form class="kep-form" data-modal="<%= modal.id %>" data-table="<%= modal.table || '' %>" data-nip-map='<%= modal.nipMap ? JSON.stringify(modal.nipMap) : '' %>' data-pegawai-map='<%= modal.pegawaiMap ? JSON.stringify(modal.pegawaiMap) : '' %>' novalidate>
 				<div class="modal-body">
 					<div class="row">
 						<% modal.fields.forEach(function (f) { %>

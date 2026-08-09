@@ -1,7 +1,8 @@
 <ul class="nav kep-tabs" role="tablist">
+	<% var atab = (typeof activeTab !== 'undefined' && activeTab !== null && !isNaN(activeTab)) ? Number(activeTab) : 0; %>
 	<% tabs.forEach(function (t, i) { %>
 		<li class="nav-item">
-			<a class="nav-link <%= i === 0 ? 'active' : '' %>" id="<%= t.id %>-tab" data-toggle="tab" href="#<%= t.id %>" role="tab">
+			<a class="nav-link <%= i === atab ? 'active' : '' %>" id="<%= t.id %>-tab" data-toggle="tab" href="#<%= t.id %>" role="tab">
 				<i class="fas <%= t.icon %>"></i> <%= t.label %>
 			</a>
 		</li>
@@ -9,7 +10,7 @@
 </ul>
 <div class="tab-content kep-tab-content">
 	<% tabs.forEach(function (t, i) { %>
-		<div class="tab-pane fade <%= i === 0 ? 'show active' : '' %>" id="<%= t.id %>" role="tabpanel">
+		<div class="tab-pane fade <%= i === atab ? 'show active' : '' %>" id="<%= t.id %>" role="tabpanel">
 			<% if (t.toolbar) { %>
 				<%- include('kep_toolbar', { toolbar: t.toolbar }) %>
 			<% } %>

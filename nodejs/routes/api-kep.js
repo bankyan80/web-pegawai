@@ -51,8 +51,73 @@ const MODUL_TABLE = {
   tugas_belajar: 'tugas_belajar',
   users: 'users',
   referensi: 'referensi',
-  menu: 'menu'
+  menu: 'menu',
+  mutasi: 'mutasi',
+  jabatan: 'jabatan_pegawai',
+  sertifikasi: 'sertifikasi',
+  arsip: 'arsip',
+  suratkepegawaian: 'surat_kepegawaian',
+  riwayat_status: 'riwayat_status'
 };
+
+// Tabel layanan baru yang relasi ke pegawai lewat pegawai_id.
+// Kolom yang boleh dikirim dari form (nama pegawai di-resolve ke id).
+const PEGAWAI_LINKED = {
+  mutasi: ['pegawai_id', 'jenis', 'asal', 'tujuan', 'tanggal', 'nomor_sk', 'status', 'keterangan', 'dokumen'],
+  jabatan_pegawai: ['pegawai_id', 'jabatan', 'jenis', 'tmt', 'nomor_sk', 'tanggal_sk', 'status', 'keterangan'],
+  sertifikasi: ['pegawai_id', 'nama_sertifikasi', 'nomor', 'bidang', 'tahun', 'status', 'tunjangan', 'status_bayar', 'keterangan'],
+  arsip: ['pegawai_id', 'kategori', 'nama_dokumen', 'file', 'keterangan'],
+  surat_kepegawaian: ['pegawai_id', 'jenis', 'nomor', 'tanggal', 'perihal', 'isi', 'status'],
+  riwayat_status: ['pegawai_id', 'status_lama', 'status_baru', 'tanggal', 'nomor_sk', 'keterangan']
+};
+
+// Cache nama -> id pegawai (60s) untuk resolve pegawai_id dari form.
+let pegByName = null;
+let pegTs = 0;
+async function pegawaiIdByNama(nama) {
+  const key = String(nama || '').trim();
+  if (!key) return '';
+  if (!pegByName || Date.now() - pegTs > 60000) {
+    pegByName = {};
+    const rows = await supabase.select('pegawai');
+    rows.forEach((r) => {
+      if (!pegByName[r.nama]) pegByName[r.nama] = r.id;
+    });
+    pegTs = Date.now();
+  }
+  return pegByName[key] || '';
+}
+
+// Catat riwayat perubahan status kepegawaian (pegawai_id sebagai relasi).
+async function logRiwayatStatus(pegawaiId, lama, baru, tanggal, keterangan) {
+  try {
+    await supabase.insert('riwayat_status', {
+      pegawai_id: pegawaiId,
+      status_lama: lama || '',
+      status_baru: baru || '',
+      tanggal: tanggal || new Date().toISOString().slice(0, 10),
+      keterangan: keterangan || ''
+    });
+  } catch (err) {
+    console.error('Riwayat status gagal dicatat:', err.message);
+  }
+}
+
+// Siapkan body sesuai whitelist tabel & resolve pegawai_id dari nama.
+async function cleanBody(module, body) {
+  const table = MODUL_TABLE[module];
+  const allowed = PEGAWAI_LINKED[table];
+  if (!allowed) return toDb(module, body);
+  const out = {};
+  allowed.forEach((k) => {
+    if (body[k] !== undefined && body[k] !== '') out[k] = body[k];
+  });
+  if (!out.pegawai_id && body.nama) {
+    const pid = await pegawaiIdByNama(body.nama);
+    if (pid) out.pegawai_id = pid;
+  }
+  return out;
+}
 
 // Konversi field camelCase dari form -> kolom snake_case di DB.
 const TO_DB = {
@@ -132,9 +197,13 @@ router.post('/:modul', async (req, res) => {
       if (req.body.parent_id === '' || req.body.parent_id === undefined) req.body.parent_id = null;
       if (req.body.urutan === '' || req.body.urutan === undefined) req.body.urutan = 0;
     }
-    const row = await supabase.insert(table, toDb(req.params.modul, req.body));
+    const payload = await cleanBody(req.params.modul, req.body);
+    const row = await supabase.insert(table, payload);
     kepdata.invalidateCache();
     if (table === 'menu') menuModel.invalidateCache();
+    if (table === 'pegawai' && row && row.id) {
+      await logRiwayatStatus(row.id, '', row.jenis || '', '', 'Pegawai baru ditambahkan');
+    }
     return res.json({ ok: true, data: row });
   } catch (err) {
     return res.status(500).json({ ok: false, error: err.message });
@@ -158,7 +227,15 @@ router.put('/:modul/:id', async (req, res) => {
       if (req.body.parent_id === '' || req.body.parent_id === undefined) req.body.parent_id = null;
       if (req.body.urutan === '' || req.body.urutan === undefined) req.body.urutan = 0;
     }
-    const row = await supabase.update(table, req.params.id, toDb(req.params.modul, req.body));
+    const payload = await cleanBody(req.params.modul, req.body);
+    if (table === 'pegawai') {
+      const old = await supabase.select('pegawai', { eq: { col: 'id', val: req.params.id } });
+      const prev = (old && old[0]) || {};
+      if (String(prev.jenis || '') !== String(payload.jenis || '')) {
+        await logRiwayatStatus(req.params.id, prev.jenis || '', payload.jenis || '', payload.tmt || '', 'Perubahan status kepegawaian');
+      }
+    }
+    const row = await supabase.update(table, req.params.id, payload);
     kepdata.invalidateCache();
     if (table === 'menu') menuModel.invalidateCache();
     return res.json({ ok: true, data: row });

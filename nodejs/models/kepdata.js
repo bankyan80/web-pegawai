@@ -22,7 +22,13 @@ const TABLES = [
   'diklat_teknis',
   'izin_belajar',
   'tugas_belajar',
-  'users'
+  'users',
+  'sertifikasi',
+  'mutasi',
+  'jabatan_pegawai',
+  'arsip',
+  'riwayat_status',
+  'surat_kepegawaian'
 ];
 
 const CACHE_TTL = 60000;

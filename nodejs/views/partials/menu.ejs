@@ -7,25 +7,39 @@
 	</button>
 	<div class="collapse navbar-collapse" id="tm-navbar">
 		<ul class="navbar-nav mr-auto">
-			<% (menus || []).forEach(function (m) { %>
-				<% if (m.children && m.children.length) { %>
-					<li class="nav-item dropdown">
-						<a class="nav-link dropdown-toggle" href="#" id="navMenu<%= m.id %>" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-							<i class="fas <%= m.icon || 'fa-folder-open' %>"></i> <%= m.label %>
-						</a>
-						<div class="dropdown-menu" aria-labelledby="navMenu<%= m.id %>">
-							<% m.children.forEach(function (c) { %>
-								<a class="dropdown-item" href="<%= c.url || '#' %>"><i class="fas <%= c.icon || 'fa-chevron-right' %>"></i> <%= c.label %></a>
-							<% }) %>
-						</div>
-					</li>
-				<% } else { %>
-					<li class="nav-item">
-						<a class="nav-link" href="<%= m.url || '#' %>"><i class="fas <%= m.icon || 'fa-link' %>"></i> <%= m.label %></a>
-					</li>
-				<% } %>
-			<% }) %>
+			<%
+			function menuIcon(m) {
+				return '<i class="fas ' + (m.icon || 'fa-folder-open') + '"></i>';
+			}
+			function menuLeaf(item) {
+				return '<a class="dropdown-item" href="' + (item.url || '#') + '">' + menuIcon(item) + ' ' + item.label + '</a>';
+			}
+			function menuItems(items) {
+				var out = '';
+				(items || []).forEach(function (c) {
+					if (c.children && c.children.length) {
+						out += '<div class="dropdown-submenu"><a class="dropdown-item dropdown-toggle" href="#">' + menuIcon(c) + ' ' + c.label + '</a><div class="dropdown-menu">' + menuItems(c.children) + '</div></div>';
+					} else {
+						out += menuLeaf(c);
+					}
+				});
+				return out;
+			}
+			function menuTree(m) {
+				if (m.children && m.children.length) {
+					return '<li class="nav-item dropdown"><a class="nav-link dropdown-toggle" href="#" id="navMenu' + m.id + '" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">' + menuIcon(m) + ' ' + m.label + '</a><div class="dropdown-menu">' + menuItems(m.children) + '</div></li>';
+				}
+				return '<li class="nav-item"><a class="nav-link" href="' + (m.url || '#') + '">' + menuIcon(m) + ' ' + m.label + '</a></li>';
+			}
+			%>
+			<% (menus || []).forEach(function (m) { %><%- menuTree(m) %><% }) %>
 		</ul>
+		<style>
+			.dropdown-submenu { position: relative; }
+			.dropdown-submenu > .dropdown-menu { top: 0; left: 100%; margin-top: -6px; margin-left: -1px; border-radius: 0 6px 6px 6px; }
+			.dropdown-submenu > a.dropdown-item.dropdown-toggle::after { transform: rotate(-90deg); }
+			.dropdown-submenu:hover > .dropdown-menu { display: block; }
+		</style>
 		<% if (member) { %>
 			<form class="form-inline my-2 my-lg-0 tm-search-form" action="/" method="GET">
 				<input name="nama" class="form-control mr-sm-2 tm-search" type="text" placeholder="Cari pegawai..." aria-label="Cari pegawai">

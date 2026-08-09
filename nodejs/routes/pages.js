@@ -363,7 +363,8 @@ router.use([
   '/presensi',
   '/inbox-surat',
   '/kartu-pegawai',
-  '/periode-pppk'
+  '/periode-pppk',
+  '/status-kepegawaian'
 ], requireLogin);
 
 // Modul pengelolaan data (role staff tidak boleh)
@@ -382,7 +383,13 @@ router.use([
   '/diklat-struktural',
   '/diklat-teknis',
   '/izin-belajar',
-  '/tugas-belajar'
+  '/tugas-belajar',
+  '/mutasi',
+  '/jabatan-penugasan',
+  '/sertifikasi-tunjangan',
+  '/arsip-kepegawaian',
+  '/surat-kepegawaian',
+  '/riwayat-status'
 ], requireStaff);
 
 // Modul khusus administrator
@@ -1768,6 +1775,548 @@ router.get('/periode-pppk', async (req, res, next) => {
   };
   return renderModul(res, req, 'kep_pppk', cfg);
 });
+
+// ----------------------------------------------------------------------
+// Status Kepegawaian: tampilan read-only (5 kategori) diturunkan dari
+// Profil Pegawai (kolom jenis). Staff hanya melihat unit-nya sendiri.
+// ----------------------------------------------------------------------
+router.get('/status-kepegawaian', async (req, res, next) => {
+  const member = req.session.MEMBER;
+  const role = member ? member.role : '';
+  const unit = member ? String(member.unit || '') : '';
+  const D = await kepdata.getKepData(['pegawai']);
+  let list = (D.pegawai || []).slice();
+  if (role === 'staff') {
+    list = list.filter((p) => String(p.unit || '') === unit);
+  }
+
+  function seg(j) {
+    const s = String(j || '');
+    if (isPppkParuhWaktu(s)) return 'PPPK Paruh Waktu';
+    if (isPppk(s)) return 'PPPK';
+    if (/^pns$/i.test(s.trim())) return 'PNS';
+    return 'Non-ASN';
+  }
+
+  function statusBlock(id, rows) {
+    return {
+      toolbar: {
+        search: { table: id, placeholder: 'Cari nama/NIP' },
+        filters: [],
+        buttons: [
+          { type: 'export', table: id, label: 'Export', icon: 'fa-file-export' },
+          { type: 'print', label: 'Cetak', icon: 'fa-print' }
+        ]
+      },
+      table: {
+        id,
+        columns: [
+          { label: 'NIP' },
+          { label: 'Nama Pegawai' },
+          { label: 'Status Kepegawaian', format: kepBadge },
+          { label: 'Jabatan' },
+          { label: 'Unit Kerja' },
+          { label: 'TMT' },
+          { label: 'Status', format: kepBadge }
+        ],
+        rows: rows.map((p) => [p.nip, p.nama, p.jenis, p.jabatan, p.unit, p.tmt || '-', p.status]),
+        records: rows.map((p) => ({ id: p.id, nip: p.nip, nama: p.nama, jenis: p.jenis, jabatan: p.jabatan, unit: p.unit, tmt: p.tmt, status: p.status })),
+        actions: [
+          { act: 'detail', icon: 'fa-eye', label: 'Lihat' },
+          { act: 'profil', icon: 'fa-id-card', label: 'Profil' }
+        ]
+      }
+    };
+  }
+
+  const jMap = { PNS: 1, PPPK: 2, 'PPPK Paruh Waktu': 3, 'Non-ASN': 4 };
+  const activeTab = jMap[String(req.query.jenis || '')] !== undefined ? jMap[req.query.jenis] : 0;
+
+  const cfg = {
+    breadcrumb: ['Kepegawaian', 'Status Kepegawaian'],
+    title: 'Status Kepegawaian',
+    desc: 'Rekap seluruh pegawai berdasarkan status kepegawaian, diturunkan dari Profil Pegawai',
+    activeTab,
+    tabs: [
+      Object.assign({ id: 'tabStsAll', label: 'Semua Pegawai', icon: 'fa-users' }, statusBlock('tblStsAll', list)),
+      Object.assign({ id: 'tabStsPns', label: 'PNS', icon: 'fa-id-badge' }, statusBlock('tblStsPns', list.filter((p) => seg(p.jenis) === 'PNS'))),
+      Object.assign({ id: 'tabStsPppk', label: 'PPPK', icon: 'fa-user-graduate' }, statusBlock('tblStsPppk', list.filter((p) => seg(p.jenis) === 'PPPK'))),
+      Object.assign({ id: 'tabStsPw', label: 'PPPK Paruh Waktu', icon: 'fa-user-clock' }, statusBlock('tblStsPw', list.filter((p) => seg(p.jenis) === 'PPPK Paruh Waktu'))),
+      Object.assign({ id: 'tabStsNon', label: 'Non-ASN', icon: 'fa-user' }, statusBlock('tblStsNon', list.filter((p) => seg(p.jenis) === 'Non-ASN')))
+    ]
+  };
+  return renderModul(res, req, 'kep_tabs', cfg);
+});
+
+// ----------------------------------------------------------------------
+// Layanan Kepegawaian baru. Seluruh relasi memakai pegawai_id sebagai FK;
+// nama/NIP/unit ditampilkan lewat join ke Profil Pegawai (tanpa duplikasi).
+// ----------------------------------------------------------------------
+function pegawaiPickers(D) {
+  const peg = (D.pegawai || []).slice().sort((a, b) => String(a.nama).localeCompare(String(b.nama)));
+  const pegawaiMap = {};
+  const nipMap = {};
+  const options = [];
+  const seen = new Set();
+  peg.forEach((p) => {
+    if (!pegawaiMap[p.nama]) {
+      pegawaiMap[p.nama] = Number(p.id);
+      nipMap[p.nama] = p.nip;
+    }
+    if (!seen.has(p.nama)) {
+      seen.add(p.nama);
+      options.push(p.nama);
+    }
+  });
+  return { pegawaiOptions: options, pegawaiMap, nipMap };
+}
+
+function pegMapById(D) {
+  const map = {};
+  (D.pegawai || []).forEach((p) => { map[Number(p.id)] = p; });
+  return map;
+}
+
+router.get('/mutasi', async (req, res, next) => {
+  const D = await kepdata.getKepData(['mutasi', 'pegawai']);
+  const pb = pegMapById(D);
+  const pick = pegawaiPickers(D);
+  const rows = (D.mutasi || []).map((m) => {
+    const p = pb[Number(m.pegawai_id)] || {};
+    return [p.nama || '-', p.nip || '-', m.jenis, m.asal, m.tujuan, m.tanggal, m.status];
+  });
+  const records = (D.mutasi || []).map((m) => {
+    const p = pb[Number(m.pegawai_id)] || {};
+    return { id: m.id, pegawai_id: m.pegawai_id, nama: p.nama || '', nip: p.nip || '', jenis: m.jenis, asal: m.asal, tujuan: m.tujuan, tanggal: m.tanggal, nomor_sk: m.nomor_sk, status: m.status, keterangan: m.keterangan, dokumen: m.dokumen };
+  });
+  const cfg = {
+    breadcrumb: ['Kepegawaian', 'Layanan Kepegawaian', 'Mutasi Kepegawaian'],
+    title: 'Mutasi Kepegawaian',
+    desc: 'Pengelolaan mutasi dan perpindahan pegawai antar sekolah/unit',
+    primaryBtn: { label: 'Tambah Mutasi', modal: 'modalMutasi', icon: 'fa-exchange-alt' },
+    stats: [
+      { label: 'Total Mutasi', value: (D.mutasi || []).length, icon: 'fa-exchange-alt', color: 'blue' },
+      { label: 'Masuk', value: countBy(D.mutasi, 'jenis', 'Masuk'), icon: 'fa-sign-in-alt', color: 'green' },
+      { label: 'Keluar', value: countBy(D.mutasi, 'jenis', 'Keluar'), icon: 'fa-sign-out-alt', color: 'red' },
+      { label: 'Pindah', value: countBy(D.mutasi, 'jenis', 'Pindah'), icon: 'fa-arrows-alt-h', color: 'amber' }
+    ],
+    toolbar: {
+      search: { table: 'tblMutasi', placeholder: 'Cari nama/NIP' },
+      filters: [
+        { table: 'tblMutasi', col: 2, label: 'Filter Jenis', options: ['Masuk', 'Keluar', 'Pindah'] }
+      ],
+      buttons: [
+        { type: 'export', table: 'tblMutasi', label: 'Export', icon: 'fa-file-export' },
+        { type: 'print', label: 'Cetak', icon: 'fa-print' }
+      ]
+    },
+    table: {
+      id: 'tblMutasi',
+      columns: [
+        { label: 'Nama' },
+        { label: 'NIP' },
+        { label: 'Jenis', format: kepBadge },
+        { label: 'Asal' },
+        { label: 'Tujuan' },
+        { label: 'Tanggal' },
+        { label: 'Status', format: kepBadge }
+      ],
+      rows,
+      records,
+      actions: [
+        { act: 'detail', icon: 'fa-eye', label: 'Detail' },
+        { act: 'edit', icon: 'fa-edit', label: 'Edit', modal: 'modalMutasi' },
+        { act: 'unduh', icon: 'fa-download', label: 'Dokumen' },
+        { act: 'hapus', icon: 'fa-trash', label: 'Hapus' }
+      ]
+    },
+    modal: {
+      id: 'modalMutasi',
+      title: 'Tambah Mutasi',
+      table: 'tblMutasi',
+      nipMap: pick.nipMap,
+      pegawaiMap: pick.pegawaiMap,
+      fields: [
+        { name: 'nama', label: 'Pegawai', type: 'select', options: pick.pegawaiOptions, searchable: true, required: true },
+        { name: 'pegawai_id', type: 'hidden' },
+        { name: 'jenis', label: 'Jenis Mutasi', type: 'select', options: ['Masuk', 'Keluar', 'Pindah'], required: true },
+        { name: 'asal', label: 'Asal', span: 12 },
+        { name: 'tujuan', label: 'Tujuan', span: 12 },
+        { name: 'tanggal', label: 'Tanggal', type: 'date' },
+        { name: 'nomor_sk', label: 'Nomor SK' },
+        { name: 'status', label: 'Status', type: 'select', options: ['Diajukan', 'Disetujui', 'Selesai'] },
+        { name: 'keterangan', label: 'Keterangan', type: 'textarea', span: 12 },
+        { name: 'dokumen', label: 'Dokumen (opsional)', type: 'file' }
+      ]
+    }
+  };
+  return renderModul(res, req, 'kep_table', cfg);
+});
+
+router.get('/jabatan-penugasan', async (req, res, next) => {
+  const D = await kepdata.getKepData(['jabatan_pegawai', 'pegawai', 'jabatanList']);
+  const pb = pegMapById(D);
+  const pick = pegawaiPickers(D);
+  const rows = (D.jabatan_pegawai || []).map((r) => {
+    const p = pb[Number(r.pegawai_id)] || {};
+    return [p.nama || '-', p.nip || '-', r.jabatan, r.jenis, r.tmt, r.nomor_sk, r.status];
+  });
+  const records = (D.jabatan_pegawai || []).map((r) => {
+    const p = pb[Number(r.pegawai_id)] || {};
+    return { id: r.id, pegawai_id: r.pegawai_id, nama: p.nama || '', nip: p.nip || '', jabatan: r.jabatan, jenis: r.jenis, tmt: r.tmt, nomor_sk: r.nomor_sk, tanggal_sk: r.tanggal_sk, status: r.status, keterangan: r.keterangan };
+  });
+  const cfg = {
+    breadcrumb: ['Kepegawaian', 'Layanan Kepegawaian', 'Jabatan & Penugasan'],
+    title: 'Jabatan & Penugasan',
+    desc: 'Riwayat jabatan dan tugas tambahan pegawai',
+    primaryBtn: { label: 'Tambah Jabatan', modal: 'modalJabatan', icon: 'fa-user-tie' },
+    stats: [
+      { label: 'Total', value: (D.jabatan_pegawai || []).length, icon: 'fa-user-tie', color: 'blue' },
+      { label: 'Utama', value: countBy(D.jabatan_pegawai, 'jenis', 'Utama'), icon: 'fa-star', color: 'green' },
+      { label: 'Tugas Tambahan', value: countBy(D.jabatan_pegawai, 'jenis', 'Tugas Tambahan'), icon: 'fa-tasks', color: 'amber' },
+      { label: 'Nonaktif', value: countBy(D.jabatan_pegawai, 'status', 'Nonaktif'), icon: 'fa-user-slash', color: 'red' }
+    ],
+    toolbar: {
+      search: { table: 'tblJabatan', placeholder: 'Cari nama/NIP' },
+      filters: [
+        { table: 'tblJabatan', col: 3, label: 'Filter Jenis', options: ['Utama', 'Tugas Tambahan'] }
+      ],
+      buttons: [
+        { type: 'export', table: 'tblJabatan', label: 'Export', icon: 'fa-file-export' },
+        { type: 'print', label: 'Cetak', icon: 'fa-print' }
+      ]
+    },
+    table: {
+      id: 'tblJabatan',
+      columns: [
+        { label: 'Nama' },
+        { label: 'NIP' },
+        { label: 'Jabatan' },
+        { label: 'Jenis', format: kepBadge },
+        { label: 'TMT' },
+        { label: 'Nomor SK' },
+        { label: 'Status', format: kepBadge }
+      ],
+      rows,
+      records,
+      actions: [
+        { act: 'detail', icon: 'fa-eye', label: 'Detail' },
+        { act: 'edit', icon: 'fa-edit', label: 'Edit', modal: 'modalJabatan' },
+        { act: 'hapus', icon: 'fa-trash', label: 'Hapus' }
+      ]
+    },
+    modal: {
+      id: 'modalJabatan',
+      title: 'Tambah Jabatan',
+      table: 'tblJabatan',
+      nipMap: pick.nipMap,
+      pegawaiMap: pick.pegawaiMap,
+      fields: [
+        { name: 'nama', label: 'Pegawai', type: 'select', options: pick.pegawaiOptions, searchable: true, required: true },
+        { name: 'pegawai_id', type: 'hidden' },
+        { name: 'jabatan', label: 'Nama Jabatan', type: 'select', options: D.jabatanList, required: true },
+        { name: 'jenis', label: 'Jenis', type: 'select', options: ['Utama', 'Tugas Tambahan'] },
+        { name: 'tmt', label: 'TMT', type: 'date' },
+        { name: 'nomor_sk', label: 'Nomor SK' },
+        { name: 'tanggal_sk', label: 'Tanggal SK', type: 'date' },
+        { name: 'status', label: 'Status', type: 'select', options: ['Aktif', 'Nonaktif'] },
+        { name: 'keterangan', label: 'Keterangan', type: 'textarea', span: 12 }
+      ]
+    }
+  };
+  return renderModul(res, req, 'kep_table', cfg);
+});
+
+router.get('/sertifikasi-tunjangan', async (req, res, next) => {
+  const D = await kepdata.getKepData(['sertifikasi', 'pegawai']);
+  const pb = pegMapById(D);
+  const pick = pegawaiPickers(D);
+  const rows = (D.sertifikasi || []).map((r) => {
+    const p = pb[Number(r.pegawai_id)] || {};
+    return [p.nama || '-', p.nip || '-', r.nama_sertifikasi, r.bidang, r.tahun, r.tunjangan, r.status_bayar];
+  });
+  const records = (D.sertifikasi || []).map((r) => {
+    const p = pb[Number(r.pegawai_id)] || {};
+    return { id: r.id, pegawai_id: r.pegawai_id, nama: p.nama || '', nip: p.nip || '', nama_sertifikasi: r.nama_sertifikasi, nomor: r.nomor, bidang: r.bidang, tahun: r.tahun, status: r.status, tunjangan: r.tunjangan, status_bayar: r.status_bayar, keterangan: r.keterangan };
+  });
+  const cfg = {
+    breadcrumb: ['Kepegawaian', 'Layanan Kepegawaian', 'Sertifikasi & Tunjangan'],
+    title: 'Sertifikasi & Tunjangan',
+    desc: 'Data sertifikasi guru dan status pembayaran tunjangan',
+    primaryBtn: { label: 'Tambah Sertifikasi', modal: 'modalSertifikasi', icon: 'fa-certificate' },
+    stats: [
+      { label: 'Total', value: (D.sertifikasi || []).length, icon: 'fa-certificate', color: 'blue' },
+      { label: 'Sudah Dibayar', value: countBy(D.sertifikasi, 'status_bayar', 'Sudah Dibayar'), icon: 'fa-check-circle', color: 'green' },
+      { label: 'Belum Dibayar', value: countBy(D.sertifikasi, 'status_bayar', 'Belum Dibayar'), icon: 'fa-clock', color: 'amber' },
+      { label: 'Nonaktif', value: countBy(D.sertifikasi, 'status', 'Nonaktif'), icon: 'fa-times-circle', color: 'red' }
+    ],
+    toolbar: {
+      search: { table: 'tblSertifikasi', placeholder: 'Cari nama/NIP' },
+      filters: [
+        { table: 'tblSertifikasi', col: 6, label: 'Filter Bayar', options: ['Belum Dibayar', 'Sudah Dibayar'] }
+      ],
+      buttons: [
+        { type: 'export', table: 'tblSertifikasi', label: 'Export', icon: 'fa-file-export' },
+        { type: 'print', label: 'Cetak', icon: 'fa-print' }
+      ]
+    },
+    table: {
+      id: 'tblSertifikasi',
+      columns: [
+        { label: 'Nama' },
+        { label: 'NIP' },
+        { label: 'Sertifikasi' },
+        { label: 'Bidang' },
+        { label: 'Tahun' },
+        { label: 'Tunjangan' },
+        { label: 'Status Bayar', format: kepBadge }
+      ],
+      rows,
+      records,
+      actions: [
+        { act: 'detail', icon: 'fa-eye', label: 'Detail' },
+        { act: 'edit', icon: 'fa-edit', label: 'Edit', modal: 'modalSertifikasi' },
+        { act: 'hapus', icon: 'fa-trash', label: 'Hapus' }
+      ]
+    },
+    modal: {
+      id: 'modalSertifikasi',
+      title: 'Tambah Sertifikasi',
+      table: 'tblSertifikasi',
+      nipMap: pick.nipMap,
+      pegawaiMap: pick.pegawaiMap,
+      fields: [
+        { name: 'nama', label: 'Pegawai', type: 'select', options: pick.pegawaiOptions, searchable: true, required: true },
+        { name: 'pegawai_id', type: 'hidden' },
+        { name: 'nama_sertifikasi', label: 'Nama Sertifikasi', required: true },
+        { name: 'nomor', label: 'Nomor Sertifikat' },
+        { name: 'bidang', label: 'Bidang' },
+        { name: 'tahun', label: 'Tahun', type: 'number' },
+        { name: 'status', label: 'Status', type: 'select', options: ['Aktif', 'Nonaktif'] },
+        { name: 'tunjangan', label: 'Tunjangan' },
+        { name: 'status_bayar', label: 'Status Bayar', type: 'select', options: ['Belum Dibayar', 'Sudah Dibayar'] },
+        { name: 'keterangan', label: 'Keterangan', type: 'textarea', span: 12 }
+      ]
+    }
+  };
+  return renderModul(res, req, 'kep_table', cfg);
+});
+
+router.get('/arsip-kepegawaian', async (req, res, next) => {
+  const D = await kepdata.getKepData(['arsip', 'pegawai']);
+  const pb = pegMapById(D);
+  const pick = pegawaiPickers(D);
+  const kategoriList = ['Ijazah', 'SK', 'Sertifikat', 'KTP', 'Kontrak', 'Lainnya'];
+  const rows = (D.arsip || []).map((r) => {
+    const p = pb[Number(r.pegawai_id)] || {};
+    return [p.nama || '-', p.nip || '-', r.kategori, r.nama_dokumen, r.keterangan];
+  });
+  const records = (D.arsip || []).map((r) => {
+    const p = pb[Number(r.pegawai_id)] || {};
+    return { id: r.id, pegawai_id: r.pegawai_id, nama: p.nama || '', nip: p.nip || '', kategori: r.kategori, nama_dokumen: r.nama_dokumen, file: r.file, keterangan: r.keterangan };
+  });
+  const cfg = {
+    breadcrumb: ['Kepegawaian', 'Layanan Kepegawaian', 'Arsip Kepegawaian'],
+    title: 'Arsip Kepegawaian',
+    desc: 'Kumpulan dokumen kepegawaian per pegawai',
+    primaryBtn: { label: 'Tambah Arsip', modal: 'modalArsip', icon: 'fa-archive' },
+    stats: [
+      { label: 'Total Dokumen', value: (D.arsip || []).length, icon: 'fa-archive', color: 'blue' },
+      { label: 'Ijazah', value: countBy(D.arsip, 'kategori', 'Ijazah'), icon: 'fa-graduation-cap', color: 'green' },
+      { label: 'SK', value: countBy(D.arsip, 'kategori', 'SK'), icon: 'fa-file-signature', color: 'amber' },
+      { label: 'Sertifikat', value: countBy(D.arsip, 'kategori', 'Sertifikat'), icon: 'fa-certificate', color: 'cyan' }
+    ],
+    toolbar: {
+      search: { table: 'tblArsip', placeholder: 'Cari nama/dokumen' },
+      filters: [
+        { table: 'tblArsip', col: 2, label: 'Filter Kategori', options: kategoriList }
+      ],
+      buttons: [
+        { type: 'export', table: 'tblArsip', label: 'Export', icon: 'fa-file-export' },
+        { type: 'print', label: 'Cetak', icon: 'fa-print' }
+      ]
+    },
+    table: {
+      id: 'tblArsip',
+      columns: [
+        { label: 'Nama' },
+        { label: 'NIP' },
+        { label: 'Kategori', format: kepBadge },
+        { label: 'Nama Dokumen' },
+        { label: 'Keterangan' }
+      ],
+      rows,
+      records,
+      actions: [
+        { act: 'detail', icon: 'fa-eye', label: 'Detail' },
+        { act: 'edit', icon: 'fa-edit', label: 'Edit', modal: 'modalArsip' },
+        { act: 'unduh', icon: 'fa-download', label: 'Unduh' },
+        { act: 'hapus', icon: 'fa-trash', label: 'Hapus' }
+      ]
+    },
+    modal: {
+      id: 'modalArsip',
+      title: 'Tambah Arsip',
+      table: 'tblArsip',
+      nipMap: pick.nipMap,
+      pegawaiMap: pick.pegawaiMap,
+      fields: [
+        { name: 'nama', label: 'Pegawai', type: 'select', options: pick.pegawaiOptions, searchable: true, required: true },
+        { name: 'pegawai_id', type: 'hidden' },
+        { name: 'kategori', label: 'Kategori', type: 'select', options: kategoriList, required: true },
+        { name: 'nama_dokumen', label: 'Nama Dokumen', required: true },
+        { name: 'file', label: 'File Dokumen', type: 'file', required: true },
+        { name: 'keterangan', label: 'Keterangan', type: 'textarea', span: 12 }
+      ]
+    }
+  };
+  return renderModul(res, req, 'kep_table', cfg);
+});
+
+router.get('/surat-kepegawaian', async (req, res, next) => {
+  const D = await kepdata.getKepData(['surat_kepegawaian', 'pegawai']);
+  const pb = pegMapById(D);
+  const pick = pegawaiPickers(D);
+  const jenisList = ['SK Pengangkatan', 'SK Mutasi', 'SK Cuti', 'Surat Keterangan', 'Surat Tugas', 'Lainnya'];
+  const rows = (D.surat_kepegawaian || []).map((r) => {
+    const p = pb[Number(r.pegawai_id)] || {};
+    return [p.nama || '-', p.nip || '-', r.jenis, r.nomor, r.tanggal, r.perihal, r.status];
+  });
+  const records = (D.surat_kepegawaian || []).map((r) => {
+    const p = pb[Number(r.pegawai_id)] || {};
+    return { id: r.id, pegawai_id: r.pegawai_id, nama: p.nama || '', nip: p.nip || '', jenis: r.jenis, nomor: r.nomor, tanggal: r.tanggal, perihal: r.perihal, isi: r.isi, status: r.status };
+  });
+  const cfg = {
+    breadcrumb: ['Kepegawaian', 'Layanan Kepegawaian', 'Surat Kepegawaian'],
+    title: 'Surat Kepegawaian',
+    desc: 'Penerbitan dan pengarsipan surat kepegawaian',
+    primaryBtn: { label: 'Buat Surat', modal: 'modalSuratKep', icon: 'fa-envelope-open-text' },
+    stats: [
+      { label: 'Total Surat', value: (D.surat_kepegawaian || []).length, icon: 'fa-envelope-open-text', color: 'blue' },
+      { label: 'Draft', value: countBy(D.surat_kepegawaian, 'status', 'Draft'), icon: 'fa-file', color: 'amber' },
+      { label: 'Terbit', value: countBy(D.surat_kepegawaian, 'status', 'Terbit'), icon: 'fa-check-circle', color: 'green' },
+      { label: 'SK Pengangkatan', value: countBy(D.surat_kepegawaian, 'jenis', 'SK Pengangkatan'), icon: 'fa-file-signature', color: 'cyan' }
+    ],
+    toolbar: {
+      search: { table: 'tblSuratKep', placeholder: 'Cari nama/nomor/perihal' },
+      filters: [
+        { table: 'tblSuratKep', col: 2, label: 'Filter Jenis', options: jenisList }
+      ],
+      buttons: [
+        { type: 'export', table: 'tblSuratKep', label: 'Export', icon: 'fa-file-export' },
+        { type: 'print', label: 'Cetak', icon: 'fa-print' }
+      ]
+    },
+    table: {
+      id: 'tblSuratKep',
+      columns: [
+        { label: 'Nama' },
+        { label: 'NIP' },
+        { label: 'Jenis Surat', format: kepBadge },
+        { label: 'Nomor' },
+        { label: 'Tanggal' },
+        { label: 'Perihal' },
+        { label: 'Status', format: kepBadge }
+      ],
+      rows,
+      records,
+      actions: [
+        { act: 'detail', icon: 'fa-eye', label: 'Detail' },
+        { act: 'edit', icon: 'fa-edit', label: 'Edit', modal: 'modalSuratKep' },
+        { act: 'cetak', icon: 'fa-print', label: 'Cetak' },
+        { act: 'hapus', icon: 'fa-trash', label: 'Hapus' }
+      ]
+    },
+    modal: {
+      id: 'modalSuratKep',
+      title: 'Buat Surat',
+      table: 'tblSuratKep',
+      nipMap: pick.nipMap,
+      pegawaiMap: pick.pegawaiMap,
+      fields: [
+        { name: 'nama', label: 'Pegawai', type: 'select', options: pick.pegawaiOptions, searchable: true, required: true },
+        { name: 'pegawai_id', type: 'hidden' },
+        { name: 'jenis', label: 'Jenis Surat', type: 'select', options: jenisList, required: true },
+        { name: 'nomor', label: 'Nomor Surat' },
+        { name: 'tanggal', label: 'Tanggal', type: 'date' },
+        { name: 'perihal', label: 'Perihal', span: 12 },
+        { name: 'isi', label: 'Isi Surat', type: 'textarea', span: 12 },
+        { name: 'status', label: 'Status', type: 'select', options: ['Draft', 'Terbit'] }
+      ]
+    }
+  };
+  return renderModul(res, req, 'kep_table', cfg);
+});
+
+router.get('/riwayat-status', async (req, res, next) => {
+  const D = await kepdata.getKepData(['riwayat_status', 'pegawai', 'jenisPegawaiList']);
+  const pb = pegMapById(D);
+  const pick = pegawaiPickers(D);
+  const rows = (D.riwayat_status || []).map((r) => {
+    const p = pb[Number(r.pegawai_id)] || {};
+    return [p.nama || '-', p.nip || '-', r.status_lama, r.status_baru, r.tanggal, r.nomor_sk];
+  });
+  const records = (D.riwayat_status || []).map((r) => {
+    const p = pb[Number(r.pegawai_id)] || {};
+    return { id: r.id, pegawai_id: r.pegawai_id, nama: p.nama || '', nip: p.nip || '', status_lama: r.status_lama, status_baru: r.status_baru, tanggal: r.tanggal, nomor_sk: r.nomor_sk, keterangan: r.keterangan };
+  });
+  const cfg = {
+    breadcrumb: ['Kepegawaian', 'Status Kepegawaian', 'Riwayat Status'],
+    title: 'Riwayat Status',
+    desc: 'Riwayat perubahan status kepegawaian pegawai (tercatat otomatis saat jenis diubah)',
+    primaryBtn: { label: 'Tambah Riwayat', modal: 'modalRiwayat', icon: 'fa-history' },
+    stats: [
+      { label: 'Total Riwayat', value: (D.riwayat_status || []).length, icon: 'fa-history', color: 'blue' },
+      { label: 'Menjadi PPPK', value: countBy(D.riwayat_status, 'status_baru', 'PPPK Guru'), icon: 'fa-user-graduate', color: 'green' },
+      { label: 'Menjadi PNS', value: countBy(D.riwayat_status, 'status_baru', 'PNS'), icon: 'fa-id-badge', color: 'violet' },
+      { label: 'Menjadi Non-ASN', value: countBy(D.riwayat_status, 'status_baru', 'Honorer'), icon: 'fa-user', color: 'amber' }
+    ],
+    toolbar: {
+      search: { table: 'tblRiwayat', placeholder: 'Cari nama/NIP' },
+      filters: [],
+      buttons: [
+        { type: 'export', table: 'tblRiwayat', label: 'Export', icon: 'fa-file-export' },
+        { type: 'print', label: 'Cetak', icon: 'fa-print' }
+      ]
+    },
+    table: {
+      id: 'tblRiwayat',
+      columns: [
+        { label: 'Nama' },
+        { label: 'NIP' },
+        { label: 'Status Lama', format: kepBadge },
+        { label: 'Status Baru', format: kepBadge },
+        { label: 'Tanggal' },
+        { label: 'Nomor SK' }
+      ],
+      rows,
+      records,
+      actions: [
+        { act: 'detail', icon: 'fa-eye', label: 'Detail' },
+        { act: 'edit', icon: 'fa-edit', label: 'Edit', modal: 'modalRiwayat' },
+        { act: 'hapus', icon: 'fa-trash', label: 'Hapus' }
+      ]
+    },
+    modal: {
+      id: 'modalRiwayat',
+      title: 'Tambah Riwayat',
+      table: 'tblRiwayat',
+      nipMap: pick.nipMap,
+      pegawaiMap: pick.pegawaiMap,
+      fields: [
+        { name: 'nama', label: 'Pegawai', type: 'select', options: pick.pegawaiOptions, searchable: true, required: true },
+        { name: 'pegawai_id', type: 'hidden' },
+        { name: 'status_lama', label: 'Status Lama', type: 'select', options: D.jenisPegawaiList },
+        { name: 'status_baru', label: 'Status Baru', type: 'select', options: D.jenisPegawaiList, required: true },
+        { name: 'tanggal', label: 'Tanggal', type: 'date' },
+        { name: 'nomor_sk', label: 'Nomor SK' },
+        { name: 'keterangan', label: 'Keterangan', type: 'textarea', span: 12 }
+      ]
+    }
+  };
+  return renderModul(res, req, 'kep_table', cfg);
+});
+
 
 router.get('/kelola-menu', async (req, res, next) => {
   try {
