@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS member (
   fullname TEXT NOT NULL,
   username TEXT NOT NULL UNIQUE,
   passwors TEXT NOT NULL,
-  role TEXT NOT NULL DEFAULT 'staff' CHECK (role IN ('administrator','manager','staff')),
+  role TEXT NOT NULL DEFAULT 'staff' CHECK (role IN ('administrator','staff')),
   email TEXT,
   foto TEXT
 );

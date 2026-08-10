@@ -147,14 +147,14 @@ function modulTable(modul) {
   return t;
 }
 
-// Auth sederhana: wajib login, role administrator/manager boleh ubah.
+// Auth sederhana: wajib login, hanya role administrator yang boleh mengubah.
 function mustAuth(req, res) {
   const m = req.session && req.session.MEMBER;
   if (!m) {
     res.status(401).json({ ok: false, error: 'Silakan login terlebih dahulu.' });
     return null;
   }
-  if (m.role !== 'administrator' && m.role !== 'manager') {
+  if (m.role !== 'administrator') {
     res.status(403).json({ ok: false, error: 'Anda tidak memiliki akses untuk tindakan ini.' });
     return null;
   }

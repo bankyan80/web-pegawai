@@ -7,12 +7,14 @@
 //   POST   /api/self/:modul            -> tambah data layanan sendiri
 //   PUT    /api/self/:modul/:id        -> ubah data sendiri
 //   DELETE /api/self/:modul/:id        -> hapus data sendiri
-// Modul yang tersedia: mutasi, jabatan, sertifikasi, cuti, surat, arsip.
+// Modul yang tersedia: mutasi, jabatan, sertifikasi, cuti, surat, arsip,
+// pendidikan, riwayat_pangkat, diklat.
 // Arsip presensi TIDAK dapat diubah oleh pegawai (dikelola admin).
 const express = require('express');
 const crypto = require('crypto');
 const supabase = require('../config/supabase');
 const dashboard = require('../models/dashboard');
+const kepdata = require('../models/kepdata');
 
 const router = express.Router();
 
@@ -86,10 +88,28 @@ const SELF_MODUL = {
     rel: 'pegawai_id',
     defaults: {},
     cols: ['kategori', 'nama_dokumen', 'file', 'keterangan']
+  },
+  pendidikan: {
+    table: 'pendidikan',
+    rel: 'pegawai_id',
+    defaults: {},
+    cols: ['jenjang', 'jurusan', 'nama_sekolah', 'tahun_lulus', 'ipk', 'keterangan']
+  },
+  riwayat_pangkat: {
+    table: 'riwayat_pangkat',
+    rel: 'pegawai_id',
+    defaults: {},
+    cols: ['pangkat', 'golongan', 'tmt', 'nomor_sk', 'keterangan']
+  },
+  diklat: {
+    table: 'diklat_pegawai',
+    rel: 'pegawai_id',
+    defaults: { jenis: 'teknis' },
+    cols: ['jenis', 'nama_diklat', 'penyelenggara', 'tahun', 'durasi', 'keterangan']
   }
 };
 
-const PROFIL_FIELDS = ['jk', 'ttl', 'alamat', 'hp', 'email', 'pendidikan', 'jurusan'];
+const PROFIL_FIELDS = ['jk', 'ttl', 'alamat', 'hp', 'email', 'pendidikan', 'jurusan', 'sekolah', 'pangkat', 'golongan', 'jabatan', 'unit', 'tmt'];
 
 function cleanSelf(def, body, pegawai) {
   const out = {};
@@ -148,6 +168,7 @@ router.put('/profil', async (req, res) => {
   try {
     await supabase.update('pegawai', pegawai.id, payload);
     dashboard.invalidateCache();
+    kepdata.invalidateCache();
     return res.json({ ok: true });
   } catch (err) {
     console.error('API SELF profil:', err.message);
@@ -172,6 +193,7 @@ router.post('/foto', async (req, res) => {
     await supabase.update('pegawai', pegawai.id, { foto: url });
     if (req.session.MEMBER) req.session.MEMBER.foto = url;
     dashboard.invalidateCache();
+    kepdata.invalidateCache();
     return res.json({ ok: true, url });
   } catch (err) {
     console.error('API SELF foto:', err.message);
@@ -198,6 +220,40 @@ router.post('/upload', async (req, res) => {
   }
 });
 
+// Unggah/ubah kartu pegawai sendiri (disimpan di tabel arsip,
+// kategori 'Kartu Pegawai', agar tidak perlu migrasi kolom).
+router.post('/kartu', async (req, res) => {
+  const pegawai = await ownPegawai(req, res);
+  if (!pegawai) return;
+
+  const { filename, contentType, base64 } = req.body || {};
+  if (!filename || !base64) {
+    return res.status(400).json({ ok: false, error: 'File belum dikirim.' });
+  }
+  try {
+    const safe = Date.now() + '-' + String(filename).replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 80);
+    const url = await supabase.upload('dokumen', safe, Buffer.from(base64, 'base64'), contentType || 'application/octet-stream');
+    const existing = await supabase.select('arsip', { eq: { col: 'pegawai_id', val: pegawai.id } });
+    const kartu = (existing || []).find((a) => /kartu pegawai/i.test(String(a.kategori || '')));
+    if (kartu) {
+      await supabase.update('arsip', kartu.id, { file: url, nama_dokumen: 'Kartu Pegawai' });
+    } else {
+      await supabase.insert('arsip', {
+        pegawai_id: pegawai.id,
+        kategori: 'Kartu Pegawai',
+        nama_dokumen: 'Kartu Pegawai',
+        file: url
+      });
+    }
+    dashboard.invalidateCache();
+    kepdata.invalidateCache();
+    return res.json({ ok: true, url });
+  } catch (err) {
+    console.error('API SELF kartu:', err.message);
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 router.post('/:modul', async (req, res) => {
   const pegawai = await ownPegawai(req, res);
   if (!pegawai) return;
@@ -211,6 +267,7 @@ router.post('/:modul', async (req, res) => {
     const payload = Object.assign({}, def.defaults, cleanSelf(def, req.body, pegawai));
     const row = await supabase.insert(def.table, payload);
     dashboard.invalidateCache();
+    kepdata.invalidateCache();
     return res.json({ ok: true, data: row });
   } catch (err) {
     console.error('API SELF insert ' + req.params.modul + ':', err.message);
@@ -232,6 +289,7 @@ router.put('/:modul/:id', async (req, res) => {
     const payload = cleanSelf(def, req.body, pegawai);
     await supabase.update(def.table, req.params.id, payload);
     dashboard.invalidateCache();
+    kepdata.invalidateCache();
     return res.json({ ok: true });
   } catch (err) {
     console.error('API SELF update ' + req.params.modul + ':', err.message);
@@ -252,6 +310,7 @@ router.delete('/:modul/:id', async (req, res) => {
     await assertOwn(def, req.params.id, pegawai);
     await supabase.remove(def.table, req.params.id);
     dashboard.invalidateCache();
+    kepdata.invalidateCache();
     return res.json({ ok: true });
   } catch (err) {
     console.error('API SELF delete ' + req.params.modul + ':', err.message);

@@ -44,7 +44,6 @@
   function flagsPayload(r) {
     return {
       for_administrator: r.for_administrator === true,
-      for_manager: r.for_manager === true,
       for_staff: r.for_staff === true,
       publik: r.publik === true,
       status: r.status === 'Nonaktif' ? 'Nonaktif' : 'Aktif'
@@ -80,7 +79,7 @@
 
   function roleCell(r) {
     var html = '<div class="menu-roles">';
-    var labels = { administrator: 'Admin', manager: 'Manager', staff: 'Staff' };
+    var labels = { administrator: 'Admin', staff: 'Staff' };
     (CFG.roles || []).forEach(function (role) {
       var checked = r['for_' + role] === true ? ' checked' : '';
       html += '<label class="menu-check"><input type="checkbox" class="menu-role" data-id="' + r.id + '" data-role="' + role + '"' + checked + ' /> ' + labels[role] + '</label>';
@@ -196,7 +195,6 @@
     form.querySelector('[name="parent_id"]').value = r.parent_id || '';
     form.querySelector('[name="urutan"]').value = r.urutan || 0;
     form.querySelector('[name="for_administrator"]').checked = r.for_administrator === true;
-    form.querySelector('[name="for_manager"]').checked = r.for_manager === true;
     form.querySelector('[name="for_staff"]').checked = r.for_staff === true;
     form.querySelector('[name="publik"]').checked = r.publik === true;
     form.querySelector('[name="status"]').value = r.status || 'Aktif';

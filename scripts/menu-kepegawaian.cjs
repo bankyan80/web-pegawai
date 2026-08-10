@@ -66,7 +66,7 @@ async function insert(data) {
   // 1. Root Kepegawaian (dicari by label, bukan by id, agar tak bentrok dgn id auto)
   const root = await upsert({
     label: 'Kepegawaian',
-    data: { parent_id: null, label: 'Kepegawaian', url: null, icon: 'fa-briefcase', urutan: 2, for_administrator: true, for_manager: true, for_staff: true, publik: false, status: 'Aktif' }
+    data: { parent_id: null, label: 'Kepegawaian', url: null, icon: 'fa-briefcase', urutan: 2, for_administrator: true, for_staff: true, publik: false, status: 'Aktif' }
   });
   log.push(['root Kepegawaian', root.id, root.created ? 'baru' : 'update']);
   const R = root.id;
@@ -81,7 +81,7 @@ async function insert(data) {
   for (const m of move) {
     const r = await upsert({
       id: m.id, label: m.label,
-      data: { parent_id: R, label: m.label, urutan: m.urutan, status: 'Aktif', for_administrator: true, for_manager: true, for_staff: true, publik: false }
+      data: { parent_id: R, label: m.label, urutan: m.urutan, status: 'Aktif', for_administrator: true, for_staff: true, publik: false }
     });
     log.push([m.label, r.id, r.created ? 'baru' : 'update']);
   }
@@ -101,7 +101,7 @@ async function insert(data) {
   for (const l of layanan) {
     const r = await upsert({
       id: l.id, label: l.label,
-      data: { parent_id: 3, label: l.label, url: l.url, icon: l.icon, urutan: l.urutan, status: 'Aktif', for_administrator: true, for_manager: true, for_staff: false, publik: false }
+      data: { parent_id: 3, label: l.label, url: l.url, icon: l.icon, urutan: l.urutan, status: 'Aktif', for_administrator: true, for_staff: false, publik: false }
     });
     log.push(['Layanan > ' + l.label, r.id, r.created ? 'baru' : 'update']);
   }
@@ -109,7 +109,6 @@ async function insert(data) {
   // Layanan lama tetap di bawah Layanan Kepegawaian (urutan menyusul, 10+).
   const layananLama = [
     { id: 20, label: 'Inbox surat', urutan: 10 },
-    { id: 21, label: 'Kartu Pegawai', urutan: 11 },
     { id: 25, label: 'Izin Cerai', urutan: 12 },
     { id: 26, label: 'SLKS', urutan: 13 },
     { id: 30, label: 'Pengadaan Pegawai', urutan: 14 },
@@ -134,7 +133,7 @@ async function insert(data) {
   for (const s of status) {
     const r = await upsert({
       id: s.id, label: s.label,
-      data: { parent_id: 4, label: s.label, url: s.url, icon: s.icon, urutan: s.urutan, status: 'Aktif', for_administrator: true, for_manager: true, for_staff: s.staff, publik: false }
+      data: { parent_id: 4, label: s.label, url: s.url, icon: s.icon, urutan: s.urutan, status: 'Aktif', for_administrator: true, for_staff: s.staff, publik: false }
     });
     log.push(['Status > ' + s.label, r.id, r.created ? 'baru' : 'update']);
   }

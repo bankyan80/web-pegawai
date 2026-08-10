@@ -619,12 +619,17 @@
 	function presensiFileMeta(file) {
 		var name = '', date = '';
 		if (file) {
-			var parts = file.split('/');
-			name = parts[parts.length - 1] || file;
-			var m = name.match(/^(\d{13})/);
-			if (m) {
-				var d = new Date(+m[1]);
-				if (!isNaN(d.getTime())) date = String(d.getDate()).padStart(2, '0') + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + d.getFullYear();
+			// Arsip dari Google Drive: tampilkan label bersih, bukan ID file Drive.
+			if (file.indexOf('drive.google.com') !== -1) {
+				name = 'Arsip Google Drive';
+			} else {
+				var parts = file.split('/');
+				name = parts[parts.length - 1] || file;
+				var m = name.match(/^(\d{13})/);
+				if (m) {
+					var d = new Date(+m[1]);
+					if (!isNaN(d.getTime())) date = String(d.getDate()).padStart(2, '0') + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + d.getFullYear();
+				}
 			}
 		}
 		return { name: name, date: date };

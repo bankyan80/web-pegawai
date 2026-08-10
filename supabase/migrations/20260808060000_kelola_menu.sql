@@ -1,7 +1,7 @@
 -- =============================================================
 -- Modul Kelola Menu: tabel menu dinamis + seed menu yang sudah ada
 -- Menu dirender di navbar dan diatur hak aksesnya per peran
--- (administrator / manager / staff).
+-- (administrator / staff).
 -- =============================================================
 
 CREATE TABLE IF NOT EXISTS menu (
@@ -46,7 +46,6 @@ INSERT INTO menu (id, parent_id, label, url, icon, urutan, for_administrator, fo
   (67, 3,   'Arsip Kepegawaian',  '/arsip-kepegawaian', 'fa-archive',  8, TRUE, TRUE,  FALSE, FALSE, 'Aktif'),
   (68, 3,   'Surat Kepegawaian',  '/surat-kepegawaian', 'fa-envelope-open-text', 9, TRUE, TRUE, FALSE, FALSE, 'Aktif'),
   (20, 3,   'Inbox surat',        '/inbox-surat',    'fa-inbox',       10, TRUE, TRUE, TRUE,  FALSE, 'Aktif'),
-  (21, 3,   'Kartu Pegawai',      '/kartu-pegawai',  'fa-id-card',     11, TRUE, TRUE, TRUE,  FALSE, 'Aktif'),
   (25, 3,   'Izin Cerai',         '/izin-cerai',     'fa-file-signature', 12, TRUE, TRUE, FALSE, FALSE, 'Aktif'),
   (26, 3,   'SLKS',               '/slks',           'fa-chart-line',  13, TRUE, TRUE, FALSE, FALSE, 'Aktif'),
   (30, 3,   'Pengadaan Pegawai',  '/pengadaan-pegawai', 'fa-user-plus', 14, TRUE, TRUE, FALSE, FALSE, 'Aktif'),

@@ -12,6 +12,11 @@
 		</div>
 		<div class="kep-dp-actions">
 			<button type="button" class="btn btn-outline-primary btn-kep-sm kep-print"><i class="fas fa-print"></i> Cetak Profil</button>
+			<% if (canSelfEdit) { %>
+				<label class="btn btn-outline-primary btn-kep-sm" for="kepFotoInput" role="button"><i class="fas fa-camera"></i> Ganti Foto</label>
+				<input type="file" id="kepFotoInput" accept="image/*" class="d-none" />
+				<button type="button" class="btn btn-outline-primary btn-kep-sm" data-toggle="modal" data-target="#kepEditModal"><i class="fas fa-edit"></i> Edit Profil</button>
+			<% } %>
 			<% if (canManage) { %>
 				<a class="btn btn-outline-primary btn-kep-sm" href="/profil-pegawai?edit=<%= p.id %>"><i class="fas fa-edit"></i> Edit</a>
 				<button type="button" class="btn btn-outline-danger btn-kep-sm kep-hapus-single" data-id="<%= p.id %>"><i class="fas fa-trash"></i> Hapus</button>
@@ -33,70 +38,668 @@
 		<div class="tab-pane fade show active" id="dp-profil" role="tabpanel">
 			<table class="tm-table kep-detail-table">
 				<tbody>
-					<% [['Nama Lengkap', p.nama], ['NIP', p.nip], ['NIK', p.nik], ['Tempat / Tgl Lahir', p.ttl], ['Jenis Kelamin', p.jk], ['Alamat', p.alamat], ['No. HP', p.hp], ['Email', p.email]].forEach(function (row) { %>
+					<% [['Nama Lengkap', p.nama], ['NIP', p.nip], ['NIK', p.nik], ['Tempat / Tgl Lahir', p.ttl], ['Jenis Kelamin', p.jk], ['Alamat', p.alamat], ['No. HP', p.hp], ['Email', p.email], ['Pendidikan Terakhir', (p.pendidikan || '') + (p.jurusan ? ' — ' + p.jurusan : '')], ['Sekolah', p.sekolah]].forEach(function (row) { %>
 						<tr><td><%= row[0] %></td><td><%= row[1] %></td></tr>
 					<% }) %>
 				</tbody>
 			</table>
 		</div>
+
 		<div class="tab-pane fade" id="dp-kepeg" role="tabpanel">
+			<% if (canSelfEdit) { %>
+				<div class="d-flex justify-content-end mb-2">
+					<button type="button" class="btn btn-outline-primary btn-kep-sm kep-add" data-form="kepKepegModal" data-modul="profil"><i class="fas fa-edit"></i> Edit Kepegawaian</button>
+				</div>
+			<% } %>
 			<table class="tm-table kep-detail-table">
 				<tbody>
-					<% [['Pangkat/Golongan', p.pangkat + ' — ' + p.golongan], ['Jabatan', p.jabatan], ['Status Kepegawaian', p.status], ['TMT', p.tmt], ['Unit Kerja', p.unit]].forEach(function (row) { %>
+					<% [['Pangkat/Golongan', (p.pangkat || '') + (p.golongan ? ' — ' + p.golongan : '')], ['Jabatan', p.jabatan], ['Status Kepegawaian', p.status], ['TMT', p.tmt], ['Unit Kerja', p.unit]].forEach(function (row) { %>
 						<tr><td><%= row[0] %></td><td><%= row[1] %></td></tr>
 					<% }) %>
 				</tbody>
 			</table>
 		</div>
+
 		<div class="tab-pane fade" id="dp-pdd" role="tabpanel">
+			<% if (canSelfEdit) { %>
+				<div class="d-flex justify-content-end mb-2">
+					<button type="button" class="btn btn-primary btn-kep-sm kep-add" data-form="kepPddModal" data-modul="pendidikan"><i class="fas fa-plus"></i> Tambah Pendidikan</button>
+				</div>
+			<% } %>
 			<table class="tm-table kep-table">
-				<thead><tr><th>No</th><th>Jenjang</th><th>Jurusan</th><th>Institusi</th><th>Tahun</th></tr></thead>
+				<thead><tr><th class="kep-no-col">No</th><th>Jenjang</th><th>Jurusan</th><th>Institusi</th><th>Tahun Lulus</th><% if (canSelfEdit) { %><th class="kep-th-act">Aksi</th><% } %></tr></thead>
 				<tbody>
-					<% (p.pendidikan || []).forEach(function (r, i) { %>
-						<tr><td class="kep-no"><%= i + 1 %></td><td><%= r.jenjang %></td><td><%= r.jurusan %></td><td><%= r.sekolah %></td><td><%= r.tahun %></td></tr>
-					<% }) %>
+					<% if ((p.pendidikan || []).length) { (p.pendidikan).forEach(function (r, i) { %>
+						<tr>
+							<td class="kep-no"><%= i + 1 %></td>
+							<td><%= r.jenjang %></td>
+							<td><%= r.jurusan %></td>
+							<td><%= r.nama_sekolah %></td>
+							<td><%= r.tahun_lulus %></td>
+							<% if (canSelfEdit) { %>
+							<td class="kep-td-act">
+								<button type="button" class="btn btn-sm btn-outline-primary kep-edit" data-form="kepPddModal" data-modul="pendidikan" data-rec='<%= JSON.stringify(r) %>' title="Edit"><i class="fas fa-edit"></i></button>
+								<button type="button" class="btn btn-sm btn-outline-danger kep-del" data-modul="pendidikan" data-id="<%= r.id %>" title="Hapus"><i class="fas fa-trash"></i></button>
+							</td>
+							<% } %>
+						</tr>
+					<% }); } else { %>
+						<tr><td colspan="<%= canSelfEdit ? 6 : 5 %>" class="text-center text-muted">Belum ada data pendidikan.</td></tr>
+					<% } %>
 				</tbody>
 			</table>
 		</div>
 		<div class="tab-pane fade" id="dp-pangkat" role="tabpanel">
+			<% if (canSelfEdit) { %>
+				<div class="d-flex justify-content-end mb-2">
+					<button type="button" class="btn btn-primary btn-kep-sm kep-add" data-form="kepPangkatModal" data-modul="riwayat_pangkat"><i class="fas fa-plus"></i> Tambah Riwayat Pangkat</button>
+				</div>
+			<% } %>
 			<table class="tm-table kep-table">
-				<thead><tr><th>No</th><th>Pangkat</th><th>Golongan</th><th>TMT</th><th>No. SK</th></tr></thead>
+				<thead><tr><th class="kep-no-col">No</th><th>Pangkat</th><th>Golongan</th><th>TMT</th><th>No. SK</th><% if (canSelfEdit) { %><th class="kep-th-act">Aksi</th><% } %></tr></thead>
 				<tbody>
-					<% (p.riwayatPangkat || []).forEach(function (r, i) { %>
-						<tr><td class="kep-no"><%= i + 1 %></td><td><%= r.pangkat %></td><td><%= r.golongan %></td><td><%= r.tmt %></td><td><%= r.sk %></td></tr>
-					<% }) %>
+					<% if ((p.riwayatPangkat || []).length) { (p.riwayatPangkat).forEach(function (r, i) { %>
+						<tr>
+							<td class="kep-no"><%= i + 1 %></td>
+							<td><%= r.pangkat %></td>
+							<td><%= r.golongan %></td>
+							<td><%= r.tmt %></td>
+							<td><%= r.nomor_sk %></td>
+							<% if (canSelfEdit) { %>
+							<td class="kep-td-act">
+								<button type="button" class="btn btn-sm btn-outline-primary kep-edit" data-form="kepPangkatModal" data-modul="riwayat_pangkat" data-rec='<%= JSON.stringify(r) %>' title="Edit"><i class="fas fa-edit"></i></button>
+								<button type="button" class="btn btn-sm btn-outline-danger kep-del" data-modul="riwayat_pangkat" data-id="<%= r.id %>" title="Hapus"><i class="fas fa-trash"></i></button>
+							</td>
+							<% } %>
+						</tr>
+					<% }); } else { %>
+						<tr><td colspan="<%= canSelfEdit ? 6 : 5 %>" class="text-center text-muted">Belum ada riwayat pangkat.</td></tr>
+					<% } %>
 				</tbody>
 			</table>
 		</div>
+
 		<div class="tab-pane fade" id="dp-jab" role="tabpanel">
+			<% if (canSelfEdit) { %>
+				<div class="d-flex justify-content-end mb-2">
+					<button type="button" class="btn btn-primary btn-kep-sm kep-add" data-form="kepJabModal" data-modul="jabatan"><i class="fas fa-plus"></i> Tambah Riwayat Jabatan</button>
+				</div>
+			<% } %>
 			<table class="tm-table kep-table">
-				<thead><tr><th>No</th><th>Jabatan</th><th>Unit Kerja</th><th>TMT</th></tr></thead>
+				<thead><tr><th class="kep-no-col">No</th><th>Jabatan</th><th>Jenis</th><th>TMT</th><th>No. SK</th><% if (canSelfEdit) { %><th class="kep-th-act">Aksi</th><% } %></tr></thead>
 				<tbody>
-					<% (p.riwayatJabatan || []).forEach(function (r, i) { %>
-						<tr><td class="kep-no"><%= i + 1 %></td><td><%= r.jabatan %></td><td><%= r.unit %></td><td><%= r.tmt %></td></tr>
-					<% }) %>
+					<% if ((p.riwayatJabatan || []).length) { (p.riwayatJabatan).forEach(function (r, i) { %>
+						<tr>
+							<td class="kep-no"><%= i + 1 %></td>
+							<td><%= r.jabatan %></td>
+							<td><%= r.jenis %></td>
+							<td><%= r.tmt %></td>
+							<td><%= r.nomor_sk %></td>
+							<% if (canSelfEdit) { %>
+							<td class="kep-td-act">
+								<button type="button" class="btn btn-sm btn-outline-primary kep-edit" data-form="kepJabModal" data-modul="jabatan" data-rec='<%= JSON.stringify(r) %>' title="Edit"><i class="fas fa-edit"></i></button>
+								<button type="button" class="btn btn-sm btn-outline-danger kep-del" data-modul="jabatan" data-id="<%= r.id %>" title="Hapus"><i class="fas fa-trash"></i></button>
+							</td>
+							<% } %>
+						</tr>
+					<% }); } else { %>
+						<tr><td colspan="<%= canSelfEdit ? 6 : 5 %>" class="text-center text-muted">Belum ada riwayat jabatan.</td></tr>
+					<% } %>
 				</tbody>
 			</table>
 		</div>
 		<div class="tab-pane fade" id="dp-diklat" role="tabpanel">
+			<% if (canSelfEdit) { %>
+				<div class="d-flex justify-content-end mb-2">
+					<button type="button" class="btn btn-primary btn-kep-sm kep-add" data-form="kepDiklatModal" data-modul="diklat"><i class="fas fa-plus"></i> Tambah Diklat</button>
+				</div>
+			<% } %>
 			<table class="tm-table kep-table">
-				<thead><tr><th>No</th><th>Nama Diklat</th><th>Tahun</th><th>Status</th></tr></thead>
+				<thead><tr><th class="kep-no-col">No</th><th>Nama Diklat</th><th>Jenis</th><th>Penyelenggara</th><th>Tahun</th><% if (canSelfEdit) { %><th class="kep-th-act">Aksi</th><% } %></tr></thead>
 				<tbody>
-					<% (p.diklat || []).forEach(function (r, i) { %>
-						<tr><td class="kep-no"><%= i + 1 %></td><td><%= r.nama %></td><td><%= r.tahun %></td><td><span class="kep-badge kb-green"><%= r.status %></span></td></tr>
-					<% }) %>
+					<% if ((p.diklat || []).length) { (p.diklat).forEach(function (r, i) { %>
+						<tr>
+							<td class="kep-no"><%= i + 1 %></td>
+							<td><%= r.nama_diklat %></td>
+							<td><span class="kep-badge kb-<%= r.jenis === 'struktural' ? 'blue' : 'green' %>"><%= r.jenis %></span></td>
+							<td><%= r.penyelenggara %></td>
+							<td><%= r.tahun %></td>
+							<% if (canSelfEdit) { %>
+							<td class="kep-td-act">
+								<button type="button" class="btn btn-sm btn-outline-primary kep-edit" data-form="kepDiklatModal" data-modul="diklat" data-rec='<%= JSON.stringify(r) %>' title="Edit"><i class="fas fa-edit"></i></button>
+								<button type="button" class="btn btn-sm btn-outline-danger kep-del" data-modul="diklat" data-id="<%= r.id %>" title="Hapus"><i class="fas fa-trash"></i></button>
+							</td>
+							<% } %>
+						</tr>
+					<% }); } else { %>
+						<tr><td colspan="<%= canSelfEdit ? 6 : 5 %>" class="text-center text-muted">Belum ada data diklat.</td></tr>
+					<% } %>
 				</tbody>
 			</table>
 		</div>
+
 		<div class="tab-pane fade" id="dp-doc" role="tabpanel">
+			<% if (canSelfEdit) { %>
+				<div class="d-flex justify-content-end mb-2">
+					<button type="button" class="btn btn-primary btn-kep-sm kep-add" data-form="kepDocModal" data-modul="arsip"><i class="fas fa-upload"></i> Upload Dokumen</button>
+				</div>
+			<% } %>
 			<table class="tm-table kep-table">
-				<thead><tr><th>No</th><th>Nama Dokumen</th><th>Jenis</th><th>Status</th></tr></thead>
+				<thead><tr><th class="kep-no-col">No</th><th>Nama Dokumen</th><th>Kategori</th><% if (canSelfEdit) { %><th class="kep-th-act">Aksi</th><% } %></tr></thead>
 				<tbody>
-					<% (p.dokumen || []).forEach(function (r, i) { %>
-						<tr><td class="kep-no"><%= i + 1 %></td><td><%= r.nama %></td><td><%= r.jenis %></td><td><span class="kep-badge kb-blue"><%= r.status %></span></td></tr>
-					<% }) %>
+					<% if ((p.dokumen || []).length) { (p.dokumen).forEach(function (r, i) { %>
+						<tr>
+							<td class="kep-no"><%= i + 1 %></td>
+							<td><% if (r.file) { %><a href="<%= r.file %>" target="_blank" rel="noopener"><i class="fas fa-file-alt text-primary"></i> <%= r.nama_dokumen %></a><% } else { %><%= r.nama_dokumen %><% } %></td>
+							<td><%= r.kategori %></td>
+							<% if (canSelfEdit) { %>
+							<td class="kep-td-act">
+								<button type="button" class="btn btn-sm btn-outline-primary kep-edit" data-form="kepDocModal" data-modul="arsip" data-rec='<%= JSON.stringify(r) %>' title="Edit"><i class="fas fa-edit"></i></button>
+								<button type="button" class="btn btn-sm btn-outline-danger kep-del" data-modul="arsip" data-id="<%= r.id %>" title="Hapus"><i class="fas fa-trash"></i></button>
+							</td>
+							<% } %>
+						</tr>
+					<% }); } else { %>
+						<tr><td colspan="<%= canSelfEdit ? 4 : 3 %>" class="text-center text-muted">Belum ada dokumen.</td></tr>
+					<% } %>
 				</tbody>
 			</table>
 		</div>
 	</div>
 </div>
+<% if (canSelfEdit) { %>
+<div class="modal fade" id="kepEditModal" tabindex="-1" role="dialog" aria-hidden="true">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content kep-modal">
+			<div class="modal-header">
+				<h5 class="modal-title kep-modal-title"><i class="fas fa-user-edit"></i> Edit Profil</h5>
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+			</div>
+			<form id="kepProfilForm" class="kep-form">
+				<div class="modal-body">
+					<div class="kep-form-grid">
+						<div class="kep-field">
+							<label>Jenis Kelamin</label>
+							<select class="form-control" name="jk">
+								<option value="">-- Pilih --</option>
+								<option value="Laki-laki" <%= p.jk === 'Laki-laki' ? 'selected' : '' %>>Laki-laki</option>
+								<option value="Perempuan" <%= p.jk === 'Perempuan' ? 'selected' : '' %>>Perempuan</option>
+							</select>
+						</div>
+						<div class="kep-field">
+							<label>Tempat / Tgl Lahir</label>
+							<input type="text" class="form-control" name="ttl" value="<%= p.ttl || '' %>" />
+						</div>
+						<div class="kep-field">
+							<label>Alamat</label>
+							<textarea class="form-control" name="alamat" rows="2"><%= p.alamat || '' %></textarea>
+						</div>
+						<div class="kep-field">
+							<label>No. HP</label>
+							<input type="text" class="form-control" name="hp" value="<%= p.hp || '' %>" />
+						</div>
+						<div class="kep-field">
+							<label>Email</label>
+							<input type="email" class="form-control" name="email" value="<%= p.email || '' %>" />
+						</div>
+						<div class="kep-field">
+							<label>Jurusan</label>
+							<input type="text" class="form-control" name="jurusan" value="<%= p.jurusan || '' %>" />
+						</div>
+						<div class="kep-field">
+							<label>Sekolah</label>
+							<input type="text" class="form-control" name="sekolah" value="<%= p.sekolah || '' %>" />
+						</div>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-outline-secondary btn-kep-sm" data-dismiss="modal">Batal</button>
+					<button type="submit" class="btn btn-primary btn-kep-sm"><i class="fas fa-save"></i> Simpan</button>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+
+<div class="modal fade" id="kepKepegModal" tabindex="-1" role="dialog" aria-hidden="true">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content kep-modal">
+			<div class="modal-header">
+				<h5 class="modal-title kep-modal-title"><i class="fas fa-briefcase"></i> Edit Kepegawaian</h5>
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+			</div>
+			<form id="kepKepegForm" class="kep-form">
+				<div class="modal-body">
+					<div class="kep-form-grid">
+						<div class="kep-field">
+							<label>Pangkat</label>
+							<input type="text" class="form-control" name="pangkat" value="<%= p.pangkat || '' %>" />
+						</div>
+						<div class="kep-field">
+							<label>Golongan</label>
+							<input type="text" class="form-control" name="golongan" value="<%= p.golongan || '' %>" />
+						</div>
+						<div class="kep-field">
+							<label>Jabatan</label>
+							<input type="text" class="form-control" name="jabatan" value="<%= p.jabatan || '' %>" />
+						</div>
+						<div class="kep-field">
+							<label>Unit Kerja</label>
+							<input type="text" class="form-control" name="unit" value="<%= p.unit || '' %>" />
+						</div>
+						<div class="kep-field">
+							<label>TMT</label>
+							<input type="text" class="form-control" name="tmt" value="<%= p.tmt || '' %>" />
+						</div>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-outline-secondary btn-kep-sm" data-dismiss="modal">Batal</button>
+					<button type="submit" class="btn btn-primary btn-kep-sm"><i class="fas fa-save"></i> Simpan</button>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+
+<div class="modal fade" id="kepPddModal" tabindex="-1" role="dialog" aria-hidden="true">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content kep-modal">
+			<div class="modal-header">
+				<h5 class="modal-title kep-modal-title"><i class="fas fa-graduation-cap"></i> Pendidikan</h5>
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+			</div>
+			<form id="kepPddForm" class="kep-form" data-modul="pendidikan">
+				<div class="modal-body">
+					<div class="kep-form-grid">
+						<div class="kep-field">
+							<label>Jenjang</label>
+							<select class="form-control" name="jenjang">
+								<option value="">-- Pilih --</option>
+								<% ['SD', 'SMP', 'SMA', 'SMK', 'D1', 'D2', 'D3', 'D4', 'S1', 'S2', 'S3'].forEach(function (o) { %><option value="<%= o %>"><%= o %></option><% }) %>
+							</select>
+						</div>
+						<div class="kep-field">
+							<label>Jurusan</label>
+							<input type="text" class="form-control" name="jurusan" />
+						</div>
+						<div class="kep-field">
+							<label>Institusi / Sekolah</label>
+							<input type="text" class="form-control" name="nama_sekolah" />
+						</div>
+						<div class="kep-field">
+							<label>Tahun Lulus</label>
+							<input type="text" class="form-control" name="tahun_lulus" />
+						</div>
+						<div class="kep-field">
+							<label>IPK</label>
+							<input type="text" class="form-control" name="ipk" />
+						</div>
+						<div class="kep-field">
+							<label>Keterangan</label>
+							<textarea class="form-control" name="keterangan" rows="2"></textarea>
+						</div>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-outline-secondary btn-kep-sm" data-dismiss="modal">Batal</button>
+					<button type="submit" class="btn btn-primary btn-kep-sm"><i class="fas fa-save"></i> Simpan</button>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+<div class="modal fade" id="kepPangkatModal" tabindex="-1" role="dialog" aria-hidden="true">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content kep-modal">
+			<div class="modal-header">
+				<h5 class="modal-title kep-modal-title"><i class="fas fa-award"></i> Riwayat Pangkat</h5>
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+			</div>
+			<form id="kepPangkatForm" class="kep-form" data-modul="riwayat_pangkat">
+				<div class="modal-body">
+					<div class="kep-form-grid">
+						<div class="kep-field">
+							<label>Pangkat</label>
+							<input type="text" class="form-control" name="pangkat" />
+						</div>
+						<div class="kep-field">
+							<label>Golongan</label>
+							<input type="text" class="form-control" name="golongan" />
+						</div>
+						<div class="kep-field">
+							<label>TMT</label>
+							<input type="text" class="form-control" name="tmt" />
+						</div>
+						<div class="kep-field">
+							<label>No. SK</label>
+							<input type="text" class="form-control" name="nomor_sk" />
+						</div>
+						<div class="kep-field">
+							<label>Keterangan</label>
+							<textarea class="form-control" name="keterangan" rows="2"></textarea>
+						</div>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-outline-secondary btn-kep-sm" data-dismiss="modal">Batal</button>
+					<button type="submit" class="btn btn-primary btn-kep-sm"><i class="fas fa-save"></i> Simpan</button>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+
+<div class="modal fade" id="kepJabModal" tabindex="-1" role="dialog" aria-hidden="true">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content kep-modal">
+			<div class="modal-header">
+				<h5 class="modal-title kep-modal-title"><i class="fas fa-id-badge"></i> Riwayat Jabatan</h5>
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+			</div>
+			<form id="kepJabForm" class="kep-form" data-modul="jabatan">
+				<div class="modal-body">
+					<div class="kep-form-grid">
+						<div class="kep-field">
+							<label>Jabatan</label>
+							<input type="text" class="form-control" name="jabatan" />
+						</div>
+						<div class="kep-field">
+							<label>Jenis</label>
+							<select class="form-control" name="jenis">
+								<option value="">-- Pilih --</option>
+								<option value="Fungsional">Fungsional</option>
+								<option value="Struktural">Struktural</option>
+								<option value="Pelaksana">Pelaksana</option>
+							</select>
+						</div>
+						<div class="kep-field">
+							<label>TMT</label>
+							<input type="text" class="form-control" name="tmt" />
+						</div>
+						<div class="kep-field">
+							<label>No. SK</label>
+							<input type="text" class="form-control" name="nomor_sk" />
+						</div>
+						<div class="kep-field">
+							<label>Tanggal SK</label>
+							<input type="text" class="form-control" name="tanggal_sk" />
+						</div>
+						<div class="kep-field">
+							<label>Keterangan</label>
+							<textarea class="form-control" name="keterangan" rows="2"></textarea>
+						</div>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-outline-secondary btn-kep-sm" data-dismiss="modal">Batal</button>
+					<button type="submit" class="btn btn-primary btn-kep-sm"><i class="fas fa-save"></i> Simpan</button>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+
+<div class="modal fade" id="kepDiklatModal" tabindex="-1" role="dialog" aria-hidden="true">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content kep-modal">
+			<div class="modal-header">
+				<h5 class="modal-title kep-modal-title"><i class="fas fa-chalkboard-teacher"></i> Diklat</h5>
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+			</div>
+			<form id="kepDiklatForm" class="kep-form" data-modul="diklat">
+				<div class="modal-body">
+					<div class="kep-form-grid">
+						<div class="kep-field">
+							<label>Jenis</label>
+							<select class="form-control" name="jenis">
+								<option value="teknis">Teknis</option>
+								<option value="struktural">Struktural</option>
+								<option value="fungsional">Fungsional</option>
+							</select>
+						</div>
+						<div class="kep-field">
+							<label>Nama Diklat</label>
+							<input type="text" class="form-control" name="nama_diklat" />
+						</div>
+						<div class="kep-field">
+							<label>Penyelenggara</label>
+							<input type="text" class="form-control" name="penyelenggara" />
+						</div>
+						<div class="kep-field">
+							<label>Tahun</label>
+							<input type="text" class="form-control" name="tahun" />
+						</div>
+						<div class="kep-field">
+							<label>Durasi</label>
+							<input type="text" class="form-control" name="durasi" />
+						</div>
+						<div class="kep-field">
+							<label>Keterangan</label>
+							<textarea class="form-control" name="keterangan" rows="2"></textarea>
+						</div>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-outline-secondary btn-kep-sm" data-dismiss="modal">Batal</button>
+					<button type="submit" class="btn btn-primary btn-kep-sm"><i class="fas fa-save"></i> Simpan</button>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+<div class="modal fade" id="kepDocModal" tabindex="-1" role="dialog" aria-hidden="true">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content kep-modal">
+			<div class="modal-header">
+				<h5 class="modal-title kep-modal-title"><i class="fas fa-folder-open"></i> Dokumen</h5>
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+			</div>
+			<form id="kepDocForm" class="kep-form" data-modul="arsip">
+				<div class="modal-body">
+					<div class="kep-form-grid">
+						<div class="kep-field">
+							<label>Kategori</label>
+							<select class="form-control" name="kategori">
+								<option value="">-- Pilih --</option>
+								<% ['Ijazah', 'SK', 'Sertifikat', 'Surat', 'Kartu', 'Lainnya'].forEach(function (o) { %><option value="<%= o %>"><%= o %></option><% }) %>
+							</select>
+						</div>
+						<div class="kep-field">
+							<label>Nama Dokumen</label>
+							<input type="text" class="form-control" name="nama_dokumen" />
+						</div>
+						<div class="kep-field">
+							<label>File</label>
+							<input type="file" class="form-control" name="file" />
+						</div>
+						<div class="kep-field">
+							<label>Keterangan</label>
+							<textarea class="form-control" name="keterangan" rows="2"></textarea>
+						</div>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-outline-secondary btn-kep-sm" data-dismiss="modal">Batal</button>
+					<button type="submit" class="btn btn-primary btn-kep-sm"><i class="fas fa-save"></i> Simpan</button>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+
+<script>
+(function () {
+	var meta = document.querySelector('meta[name="csrf-token"]');
+	function csrfHeaders() {
+		return { 'Content-Type': 'application/json', 'X-CSRF-Token': meta ? meta.content : '' };
+	}
+	function toast(msg) {
+		if (typeof kepToast === 'function') kepToast(msg);
+		else alert(msg);
+	}
+	function collectForm(form) {
+		var data = {};
+		Array.prototype.slice.call(form.querySelectorAll('[name]')).forEach(function (el) {
+			if (el.type === 'file') return;
+			data[el.name] = el.value;
+		});
+		return data;
+	}
+	function openForm(formId, rec) {
+		var form = document.getElementById(formId);
+		if (!form) return;
+		form.removeAttribute('data-editing-id');
+		form.setAttribute('data-file', rec ? (rec.file || '') : '');
+		Array.prototype.slice.call(form.querySelectorAll('[name]')).forEach(function (el) {
+			if (el.type === 'file') { el.value = ''; return; }
+			var val = rec ? (rec[el.name] == null ? '' : rec[el.name]) : '';
+			if (el.tagName === 'SELECT' && String(val) !== '' && el.value !== String(val)) {
+				var opt = document.createElement('option');
+				opt.value = String(val);
+				opt.textContent = String(val) + ' (nilai lama)';
+				el.appendChild(opt);
+			}
+			el.value = val;
+		});
+		$('#' + formId).modal('show');
+	}
+	function submitSelf(form, modul, extra) {
+		var data = collectForm(form);
+		if (extra) Object.keys(extra).forEach(function (k) { data[k] = extra[k]; });
+		if (!data.file && form.getAttribute('data-file')) data.file = form.getAttribute('data-file');
+		var editing = form.getAttribute('data-editing-id');
+		var url = '/api/self/' + modul + (editing ? '/' + editing : '');
+		fetch(url, {
+			method: editing ? 'PUT' : 'POST',
+			headers: csrfHeaders(),
+			body: JSON.stringify(data)
+		}).then(function (r) { return r.json(); }).then(function (j) {
+			if (j.ok) {
+				$('#' + form.id).modal('hide');
+				toast(editing ? 'Data berhasil diubah.' : 'Data berhasil ditambah.');
+				setTimeout(function () { location.reload(); }, 600);
+			} else {
+				toast('Gagal simpan: ' + (j.error || 'unknown'));
+			}
+		}).catch(function (err) { toast('Gagal simpan: ' + err.message); });
+	}
+	function uploadSelf(file, cb) {
+		var reader = new FileReader();
+		reader.onload = function () {
+			var b64 = String(reader.result).split(',')[1] || '';
+			fetch('/api/self/upload', {
+				method: 'POST',
+				headers: csrfHeaders(),
+				body: JSON.stringify({ filename: file.name || 'dokumen.pdf', contentType: file.type || 'application/octet-stream', base64: b64 })
+			}).then(function (r) { return r.json(); }).then(function (j) {
+				if (j.ok && j.url) cb(null, j.url);
+				else cb(j.error || 'Upload gagal', null);
+			}).catch(function (err) { cb(err.message, null); });
+		};
+		reader.readAsDataURL(file);
+	}
+	function bindForm(formId, modul) {
+		var form = document.getElementById(formId);
+		if (!form) return;
+		form.addEventListener('submit', function (e) {
+			e.preventDefault();
+			var fileEl = form.querySelector('[type="file"]');
+			var hasFile = fileEl && fileEl.files && fileEl.files.length;
+			if (hasFile) {
+				uploadSelf(fileEl.files[0], function (err, url) {
+					if (err) { toast('Upload gagal: ' + err); return; }
+					submitSelf(form, modul, { file: url });
+				});
+			} else {
+				submitSelf(form, modul, null);
+			}
+		});
+	}
+	bindForm('kepPddForm', 'pendidikan');
+	bindForm('kepPangkatForm', 'riwayat_pangkat');
+	bindForm('kepJabForm', 'jabatan');
+	bindForm('kepDiklatForm', 'diklat');
+	bindForm('kepDocForm', 'arsip');
+
+	function bindPut(formId) {
+		var form = document.getElementById(formId);
+		if (!form) return;
+		form.addEventListener('submit', function (e) {
+			e.preventDefault();
+			var data = collectForm(form);
+			fetch('/api/self/profil', {
+				method: 'PUT',
+				headers: csrfHeaders(),
+				body: JSON.stringify(data)
+			}).then(function (r) { return r.json(); }).then(function (j) {
+				if (j.ok) {
+					$('#' + form.id).modal('hide');
+					toast('Profil berhasil diubah.');
+					setTimeout(function () { location.reload(); }, 600);
+				} else {
+					toast('Simpan gagal: ' + (j.error || 'unknown'));
+				}
+			}).catch(function (err) { toast('Simpan gagal: ' + err.message); });
+		});
+	}
+	bindPut('kepProfilForm');
+	bindPut('kepKepegForm');
+
+	document.addEventListener('click', function (e) {
+		var add = e.target.closest('.kep-add');
+		if (add) {
+			openForm(add.getAttribute('data-form'), null);
+			return;
+		}
+		var edit = e.target.closest('.kep-edit');
+		if (edit) {
+			var rec = {};
+			try { rec = JSON.parse(edit.getAttribute('data-rec') || '{}'); } catch (err) {}
+			openForm(edit.getAttribute('data-form'), rec);
+			var f = document.getElementById(edit.getAttribute('data-form'));
+			if (f && rec.id) f.setAttribute('data-editing-id', rec.id);
+			return;
+		}
+		var del = e.target.closest('.kep-del');
+		if (del) {
+			var modul = del.getAttribute('data-modul');
+			var id = del.getAttribute('data-id');
+			if (!confirm('Yakin ingin menghapus data ini?')) return;
+			fetch('/api/self/' + modul + '/' + id, { method: 'DELETE', headers: csrfHeaders() })
+				.then(function (r) { return r.json(); })
+				.then(function (j) {
+					if (j.ok) {
+						toast('Data berhasil dihapus.');
+						setTimeout(function () { location.reload(); }, 600);
+					} else {
+						toast('Gagal hapus: ' + (j.error || 'unknown'));
+					}
+				})
+				.catch(function () { toast('Terjadi kesalahan saat menghapus.'); });
+		}
+	});
+
+	var fotoInput = document.getElementById('kepFotoInput');
+	if (fotoInput) {
+		fotoInput.addEventListener('change', function () {
+			var f = fotoInput.files[0];
+			if (!f) return;
+			var reader = new FileReader();
+			reader.onload = function () {
+				var b64 = String(reader.result).split(',')[1] || '';
+				fetch('/api/self/foto', {
+					method: 'POST',
+					headers: csrfHeaders(),
+					body: JSON.stringify({ filename: (f.name || 'foto.png').replace(/[^a-zA-Z0-9._-]/g, '_'), contentType: f.type || 'image/png', base64: b64 })
+				}).then(function (r) { return r.json(); }).then(function (j) {
+					if (j.ok) { location.reload(); }
+					else toast('Ganti foto gagal: ' + (j.error || 'unknown'));
+				}).catch(function (err) { toast('Ganti foto gagal: ' + err.message); });
+			};
+			reader.readAsDataURL(f);
+		});
+	}
+})();
+</script>
+<% } %>

@@ -39,7 +39,7 @@ const routes = {
 
 const auth = {
   pegawai: 'login',
-  form_pegawai: 'login',
+  form_pegawai: 'staff',
   detail_pegawai: 'login',
   profile: 'login',
   divisi: 'staff',
@@ -151,6 +151,11 @@ router.get('/', async (req, res, next) => {
         } else {
           rs = await pegawaiModel.dataPegawai();
         }
+        // Pegawai biasa (staff) hanya boleh melihat data dirinya sendiri.
+        if (member && member.role === 'staff') {
+          const ownId = String(member.pegawai_id || '');
+          rs = (rs || []).filter((p) => String(p.id) === ownId);
+        }
         base.rs = rs;
         break;
       }
@@ -161,7 +166,10 @@ router.get('/', async (req, res, next) => {
         break;
       }
       case 'detail_pegawai': {
-        base.peg = (await pegawaiModel.detailPegawai(req.query.id || '')) || {};
+        // Pegawai biasa (staff) hanya boleh membuka detail dirinya sendiri.
+        let pid = String(req.query.id || '');
+        if (member && member.role === 'staff') pid = String(member.pegawai_id || '');
+        base.peg = (await pegawaiModel.detailPegawai(pid)) || {};
         break;
       }
       case 'divisi': {
@@ -472,6 +480,37 @@ router.get('/profil-pegawai', async (req, res, next) => {
     hp: p.hp, email: p.email, jenis: p.jenis, pangkat: p.pangkat, golongan: p.golongan,
     jabatan: p.jabatan, unit: p.unit, tmt: p.tmt, status: p.status
   }));
+
+  if (isStaff) {
+    const me = records[0];
+    if (me) {
+      return renderModul(res, req, 'kep_cards', {
+        breadcrumb: ['Master Data', 'Profil Pegawai'],
+        title: me.nama,
+        desc: 'Data profil Anda',
+        cards: [{
+          icon: 'fa-user',
+          title: me.nama,
+          sub: 'NIP ' + me.nip,
+          badge: me.jenis,
+          badgeColor: segJenis(me.jenis) === 'PNS' ? 'blue' : 'green',
+          rows: [
+            { label: 'NIP', value: me.nip || '-' },
+            { label: 'NIK', value: me.nik || '-' },
+            { label: 'Tempat/Tgl Lahir', value: me.ttl || '-' },
+            { label: 'Jenis Kelamin', value: me.jk || '-' },
+            { label: 'Alamat', value: me.alamat || '-' },
+            { label: 'No. HP', value: me.hp || '-' },
+            { label: 'Email', value: me.email || '-' },
+            { label: 'Pangkat/Golongan', value: (me.pangkat || '-') + ' — ' + (me.golongan || '') },
+            { label: 'Jabatan', value: me.jabatan || '-' },
+            { label: 'Unit Kerja', value: me.unit || '-' }
+          ],
+          link: '/profil-pegawai/detail/' + me.id
+        }]
+      });
+    }
+  }
   const cfg = {
     breadcrumb: ['Master Data', 'Profil Pegawai'],
     title: isStaff && records.length ? records[0].nama : 'Profil Pegawai',
@@ -551,7 +590,7 @@ router.get('/profil-pegawai/detail/:id', async (req, res, next) => {
     if (!own) return res.redirect('/?hal=home');
     if (id !== own) return res.redirect('/profil-pegawai/detail/' + own);
   }
-  const D = await kepdata.getKepData(['detailPegawai']);
+  const D = await kepdata.getKepData(['detailPegawai', 'pangkatList', 'golonganList', 'jabatanList', 'unitKerja']);
   const p = D.detailPegawai(id);
   if (!p) {
     return res.redirect('/profil-pegawai');
@@ -561,7 +600,9 @@ router.get('/profil-pegawai/detail/:id', async (req, res, next) => {
     title: p.nama,
     desc: 'NIP ' + p.nip + ' — ' + p.unit,
     p,
-    canManage: !isStaff
+    lists: { pangkatList: D.pangkatList, golonganList: D.golonganList, jabatanList: D.jabatanList, unitKerja: D.unitKerja },
+    canManage: !isStaff,
+    canSelfEdit: isStaff
   };
   return renderModul(res, req, 'kep_profil_detail', cfg);
 });
@@ -570,9 +611,9 @@ const BULAN_INDO = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Jul
 
 function pdfLink(v) {
   if (!v) {
-    return '<span class="text-muted">Belum upload</span>';
+    return '<span class="text-muted">Belum ada</span>';
   }
-  return '<a class="btn btn-sm btn-outline-primary" target="_blank" rel="noopener" href="' + v + '"><i class="fas fa-file-pdf text-danger"></i> Buka PDF</a>';
+  return '<a class="btn btn-sm btn-outline-primary" target="_blank" rel="noopener" href="' + v + '"><i class="fas fa-file-pdf text-danger"></i> Buka Arsip</a>';
 }
 
 router.get('/presensi', async (req, res, next) => {
@@ -585,6 +626,24 @@ router.get('/presensi', async (req, res, next) => {
   let list = D.presensi;
   if (isStaff) {
     list = D.presensi.filter((r) => String(r.nama || '').trim().toLowerCase() === fullname);
+    const sorted = list.slice().sort((a, b) => String(b.tahun).localeCompare(String(a.tahun)) || String(a.bulan).localeCompare(String(b.bulan)));
+    return renderModul(res, req, 'kep_cards', {
+      breadcrumb: ['Master Data', 'Presensi'],
+      title: 'Arsip Presensi',
+      desc: 'Rekap kehadiran Anda',
+      cards: sorted.map((r) => ({
+        icon: 'fa-clock',
+        title: (r.bulan || '-') + ' ' + (r.tahun || ''),
+        sub: r.nama,
+        rows: [
+          { label: 'Nama', value: r.nama },
+          { label: 'NIP', value: r.nip || '-' },
+          { label: 'Periode', value: (r.bulan || '-') + ' ' + (r.tahun || '') },
+          { label: 'Keterangan', value: r.keterangan || '-' }
+        ],
+        link: r.file || null
+      }))
+    });
   }
 
   // Kelompokkan sebagai "folder tahunan".
@@ -609,9 +668,10 @@ router.get('/presensi', async (req, res, next) => {
     });
   });
 
+  // Arsip presensi kini read-only: data bersumber dari Google Drive (per nama
+  // pegawai). Tombol mata (detail) / unduh membuka tautan Drive masing-masing.
   const tabs = tahunSet.map((tahun, ti) => {
     const tid = 'tblPrs' + ti;
-    const mid = 'modPrs' + ti;
     const recs = recordsByTahun[tahun] || [];
     const rows = recs.map((r) => [r.nama, r.nip, r.bulan, r.file, r.keterangan]);
     return {
@@ -623,13 +683,10 @@ router.get('/presensi', async (req, res, next) => {
         filters: [
           { table: tid, col: 2, label: 'Filter Bulan', options: BULAN_INDO }
         ],
-        buttons: isStaff
-          ? [{ type: 'print', label: 'Cetak', icon: 'fa-print' }]
-          : [
-              { type: 'modal', modal: mid, label: 'Upload PDF', icon: 'fa-upload' },
-              { type: 'print', label: 'Cetak', icon: 'fa-print' },
-              { type: 'export', table: tid, label: 'Export', icon: 'fa-file-export' }
-            ]
+        buttons: [
+          { type: 'print', label: 'Cetak', icon: 'fa-print' },
+          ...(isStaff ? [] : [{ type: 'export', table: tid, label: 'Export', icon: 'fa-file-export' }])
+        ]
       },
       table: {
         id: tid,
@@ -637,31 +694,14 @@ router.get('/presensi', async (req, res, next) => {
           { label: 'Nama Pegawai' },
           { label: 'NIP' },
           { label: 'Bulan' },
-          { label: 'File Presensi', format: (v) => pdfLink(v) },
+          { label: 'Arsip Presensi', format: (v) => pdfLink(v) },
           { label: 'Keterangan' }
         ],
         rows,
         records: recs,
-        actions: isStaff
-          ? [{ act: 'detail', icon: 'fa-eye', label: 'Lihat' }, { act: 'unduh', icon: 'fa-download', label: 'Unduh' }]
-          : [
-              { act: 'detail', icon: 'fa-eye', label: 'Lihat' },
-              { act: 'unduh', icon: 'fa-download', label: 'Unduh' },
-              { act: 'edit', icon: 'fa-edit', label: 'Edit', modal: mid },
-              { act: 'hapus', icon: 'fa-trash', label: 'Hapus' }
-            ]
-      },
-      modal: isStaff ? null : {
-        id: mid,
-        title: 'Upload PDF Presensi - Tahun ' + tahun,
-        table: tid,
-        nipMap: D.pegawai.reduce((acc, p) => { acc[p.nama] = p.nip; return acc; }, {}),
-        fields: [
-          { name: 'nama', label: 'Nama Pegawai', type: 'select', options: D.pegawai.map((p) => p.nama), searchable: true, required: true },
-          { name: 'nip', label: 'NIP' },
-          { name: 'tahun', type: 'hidden', value: tahun },
-          { name: 'keterangan', label: 'Keterangan', type: 'textarea' },
-          { name: 'berkas', label: 'Daftar Bulan & File PDF', type: 'batch', span: 12, months: BULAN_INDO }
+        actions: [
+          { act: 'detail', icon: 'fa-eye', label: 'Lihat' },
+          { act: 'unduh', icon: 'fa-download', label: 'Unduh' }
         ]
       }
     };
@@ -670,7 +710,7 @@ router.get('/presensi', async (req, res, next) => {
   const cfg = {
     breadcrumb: ['Master Data', 'Presensi'],
     title: 'Arsip Presensi Pegawai',
-    desc: 'Folder presensi tahunan berisi file PDF presensi bulanan per pegawai',
+    desc: 'Arsip presensi bulanan per pegawai (bersumber dari Google Drive). Klik mata atau unduh untuk membuka tautan Drive.',
     tabs
   };
   return renderModul(res, req, 'kep_tabs', cfg);
@@ -808,8 +848,31 @@ router.get('/kelola-user', async (req, res, next) => {
 
 router.get('/inbox-surat', async (req, res, next) => {
   const D = await kepdata.getKepData(['surat']);
+  const member = req.session.MEMBER;
+  const isStaff = member && member.role === 'staff';
   const rows = D.surat.map((s) => [s.nomor, s.tanggal, s.perihal, s.pengirim, s.status]);
   const records = D.surat.map((s) => ({ id: s.id, nomor: s.nomor, tanggal: s.tanggal, perihal: s.perihal, pengirim: s.pengirim, status: s.status }));
+
+  if (isStaff) {
+    return renderModul(res, req, 'kep_cards', {
+      breadcrumb: ['Layanan Kepegawaian', 'Inbox Surat'],
+      title: 'Inbox Surat',
+      desc: 'Surat masuk kepegawaian',
+      cards: records.map((s) => ({
+        icon: 'fa-envelope-open-text',
+        title: s.perihal || 'Surat',
+        sub: s.nomor,
+        badge: s.status,
+        badgeColor: s.status === 'Selesai' ? 'green' : (s.status === 'Diproses' ? 'cyan' : (s.status === 'Arsip' ? 'gray' : 'amber')),
+        rows: [
+          { label: 'Nomor Surat', value: s.nomor || '-' },
+          { label: 'Tanggal', value: s.tanggal || '-' },
+          { label: 'Pengirim', value: s.pengirim || '-' },
+          { label: 'Status', value: s.status || '-' }
+        ]
+      }))
+    });
+  }
   const cfg = {
     breadcrumb: ['Layanan Kepegawaian', 'Inbox Surat'],
     title: 'Inbox Surat',
@@ -870,12 +933,30 @@ router.get('/inbox-surat', async (req, res, next) => {
 });
 
 router.get('/kartu-pegawai', async (req, res, next) => {
-  const D = await kepdata.getKepData(['kartuPegawai']);
+  const member = req.session.MEMBER;
+  const isStaff = member && member.role === 'staff';
+  const D = await kepdata.getKepData(['kartuPegawai', 'pegawai', 'arsip']);
+  // Pegawai biasa (staff) hanya boleh mencetak kartunya sendiri.
+  let list = isStaff
+    ? D.pegawai.filter((p) => Number(p.id) === Number(member.pegawai_id))
+    : D.kartuPegawai;
+  const kartuBy = {};
+  (D.arsip || []).forEach((a) => {
+    if (/kartu pegawai/i.test(String(a.kategori || ''))) {
+      kartuBy[Number(a.pegawai_id)] = a.file;
+    }
+  });
+  list = list.map((p) => ({
+    ...p,
+    qr: p.qr || 'KRP-' + String(p.nip).slice(-6),
+    kartu: kartuBy[Number(p.id)] || ''
+  }));
   const cfg = {
     breadcrumb: ['Layanan Kepegawaian', 'Kartu Pegawai'],
     title: 'Kartu Pegawai',
-    desc: 'Cari pegawai dan cetak kartu identitas kepegawaian',
-    list: D.kartuPegawai
+    desc: isStaff ? 'Kartu identitas kepegawaian Anda' : 'Cari pegawai dan cetak kartu identitas kepegawaian',
+    list,
+    canUpload: isStaff
   };
   return renderModul(res, req, 'kep_kartu', cfg);
 });
@@ -1711,7 +1792,6 @@ router.get('/periode-pppk', async (req, res, next) => {
   const member = req.session.MEMBER;
   const D = await kepdata.getKepData(['pegawai']);
   const role = member ? member.role : '';
-  const unit = member ? String(member.unit || '') : '';
 
   const today = pppkToday();
 
@@ -1825,13 +1905,37 @@ router.get('/periode-pppk', async (req, res, next) => {
     });
 
   if (role === 'staff') {
-    list = list.filter((x) => x.sekolah === unit);
+    list = list.filter((x) => member.pegawai_id && Number(x.id) === Number(member.pegawai_id));
   }
   list.sort((a, b) => {
     const ta = a.tanggalBerakhir ? new Date(a.tanggalBerakhir + 'T00:00:00').getTime() : Infinity;
     const tb = b.tanggalBerakhir ? new Date(b.tanggalBerakhir + 'T00:00:00').getTime() : Infinity;
     return ta - tb;
   });
+
+  if (role === 'staff') {
+    return renderModul(res, req, 'kep_cards', {
+      breadcrumb: ['Layanan Kepegawaian', 'Periode PPPK'],
+      title: 'Periode PPPK',
+      desc: 'Masa kontrak dan sisa periode Anda',
+      cards: list.map((x) => ({
+        icon: 'fa-file-contract',
+        title: x.nama,
+        sub: 'NIP ' + x.nip,
+        badge: x.status,
+        badgeColor: x.status === 'AKTIF' ? 'green' : (x.status === 'SEGERA BERAKHIR' ? 'amber' : (x.status === 'BERAKHIR' ? 'red' : 'gray')),
+        rows: [
+          { label: 'Status Kepegawaian', value: x.statusKepegawaian },
+          { label: 'Jabatan', value: x.jabatan || '-' },
+          { label: 'Unit Kerja', value: x.sekolah || '-' },
+          { label: 'Periode Ke', value: x.periodeKe ? 'Periode ke-' + x.periodeKe : '-' },
+          { label: 'Tgl Mulai', value: x.tanggalMulai || '-' },
+          { label: 'Tgl Akhir', value: x.tanggalBerakhir || '-' },
+          { label: 'Sisa', value: x.sisa !== null && x.sisa !== undefined ? x.sisa + ' hari' : '-' }
+        ]
+      }))
+    });
+  }
 
   const kepegList = ['PPPK', 'PPPK Paruh Waktu'];
   const statusList = ['AKTIF', 'BELUM AKTIF', 'SEGERA BERAKHIR', 'BERAKHIR', 'BELUM LENGKAP'];
@@ -1864,11 +1968,31 @@ router.get('/periode-pppk', async (req, res, next) => {
 router.get('/status-kepegawaian', async (req, res, next) => {
   const member = req.session.MEMBER;
   const role = member ? member.role : '';
-  const unit = member ? String(member.unit || '') : '';
   const D = await kepdata.getKepData(['pegawai']);
   let list = (D.pegawai || []).slice();
   if (role === 'staff') {
-    list = list.filter((p) => String(p.unit || '') === unit);
+    list = list.filter((p) => member.pegawai_id && String(p.id) === String(member.pegawai_id));
+    const me = list[0] || null;
+    return renderModul(res, req, 'kep_cards', {
+      breadcrumb: ['Kepegawaian', 'Status Kepegawaian'],
+      title: 'Status Kepegawaian',
+      desc: 'Status kepegawaian Anda',
+      cards: me ? [{
+        icon: 'fa-id-badge',
+        title: me.nama,
+        sub: 'NIP ' + me.nip,
+        badge: me.jenis,
+        badgeColor: segJenis(me.jenis) === 'PNS' ? 'blue' : 'green',
+        rows: [
+          { label: 'Jenis Kepegawaian', value: me.jenis || '-' },
+          { label: 'Jabatan', value: me.jabatan || '-' },
+          { label: 'Unit Kerja', value: me.unit || '-' },
+          { label: 'TMT', value: me.tmt || '-' },
+          { label: 'Status', value: me.status || '-' }
+        ],
+        link: '/profil-pegawai/detail/' + me.id
+      }] : []
+    });
   }
 
   function statusBlock(id, rows) {

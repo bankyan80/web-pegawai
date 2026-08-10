@@ -1,0 +1,27 @@
+<%- include('../partials/kep_header', { breadcrumb, title, desc }) %>
+
+<div class="kep-cards">
+	<% (cards || []).forEach(function (c) { %>
+		<div class="kep-card">
+			<div class="kep-card-head">
+				<i class="fas <%= c.icon || 'fa-id-card' %>"></i>
+				<div class="kep-card-head-txt">
+					<div class="kep-card-title"><%= c.title %></div>
+					<% if (c.sub) { %><div class="kep-card-sub"><%= c.sub %></div><% } %>
+				</div>
+				<% if (c.badge) { %><span class="kep-badge kb-<%= c.badgeColor || 'blue' %>"><%= c.badge %></span><% } %>
+			</div>
+			<div class="kep-card-body">
+				<% (c.rows || []).forEach(function (r) { %>
+					<div class="kep-card-row">
+						<span><%= r.label %></span>
+						<strong><%= r.value %></strong>
+					</div>
+				<% }) %>
+			</div>
+			<% if (c.link) { %>
+				<a class="kep-card-foot" href="<%= c.link %>"><span>Selengkapnya</span> <i class="fas fa-arrow-right"></i></a>
+			<% } %>
+		</div>
+	<% }) %>
+</div>

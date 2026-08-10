@@ -13,6 +13,10 @@
 		</select>
 	</div>
 	<div class="kep-toolbar-right">
+		<% if (canUpload) { %>
+			<button type="button" class="btn btn-primary btn-kep-sm" id="kartuUploadBtn"><i class="fas fa-upload"></i> Upload Kartu</button>
+			<input type="file" id="kartuUploadFile" accept="image/*,.pdf" class="d-none" />
+		<% } %>
 		<button type="button" class="btn btn-outline-primary btn-kep-sm kep-kartu-cetak"><i class="fas fa-print"></i> Cetak Kartu</button>
 		<button type="button" class="btn btn-outline-primary btn-kep-sm kep-kartu-pdf"><i class="fas fa-file-pdf"></i> Download PDF</button>
 		<button type="button" class="btn btn-primary btn-kep-sm" data-toggle="modal" data-target="#kartuPreviewModal"><i class="fas fa-eye"></i> Preview</button>
@@ -26,21 +30,31 @@
 				<i class="fas fa-id-card"></i>
 				<span>KARTU PEGAWAI</span>
 			</div>
-			<div class="kep-kartu-body">
-				<div class="kep-kartu-foto">
-					<img src="/images/no_photo.png" alt="Foto" />
+			<% if (p.kartu) { %>
+				<div class="kep-kartu-upload">
+					<% if (/\.pdf$/i.test(p.kartu)) { %>
+						<a href="<%= p.kartu %>" target="_blank" rel="noopener"><i class="fas fa-file-pdf"></i> Buka Kartu Pegawai (PDF)</a>
+					<% } else { %>
+						<img src="<%= p.kartu %>" alt="Kartu Pegawai" />
+					<% } %>
 				</div>
-				<div class="kep-kartu-info">
-					<div class="kk-row"><span>Nama</span><strong><%= p.nama %></strong></div>
-					<div class="kk-row"><span>NIP</span><strong><%= p.nip %></strong></div>
-					<div class="kk-row"><span>Jabatan</span><strong><%= p.jabatan %></strong></div>
-					<div class="kk-row"><span>Unit Kerja</span><strong><%= p.unit %></strong></div>
+			<% } else { %>
+				<div class="kep-kartu-body">
+					<div class="kep-kartu-foto">
+						<img src="/images/no_photo.png" alt="Foto" />
+					</div>
+					<div class="kep-kartu-info">
+						<div class="kk-row"><span>Nama</span><strong><%= p.nama %></strong></div>
+						<div class="kk-row"><span>NIP</span><strong><%= p.nip %></strong></div>
+						<div class="kk-row"><span>Jabatan</span><strong><%= p.jabatan %></strong></div>
+						<div class="kk-row"><span>Unit Kerja</span><strong><%= p.unit %></strong></div>
+					</div>
 				</div>
-			</div>
-			<div class="kep-kartu-foot">
-				<span class="kep-qr"><%= p.qr %></span>
-				<em>Tim Kerja Bidang Pendidikan Sekolah Dasar Kecamatan Lemahabang</em>
-			</div>
+				<div class="kep-kartu-foot">
+					<span class="kep-qr"><%= p.qr %></span>
+					<em>Tim Kerja Bidang Pendidikan Sekolah Dasar Kecamatan Lemahabang</em>
+				</div>
+			<% } %>
 		</div>
 	<% }) %>
 </div>
@@ -111,5 +125,36 @@
 			kepToast('PDF kartu pegawai akan diunduh (demo).');
 		});
 	});
+
+	var uploadBtn = document.getElementById('kartuUploadBtn');
+	var uploadFile = document.getElementById('kartuUploadFile');
+	if (uploadBtn && uploadFile) {
+		uploadBtn.addEventListener('click', function () { uploadFile.click(); });
+		uploadFile.addEventListener('change', function () {
+			var f = uploadFile.files[0];
+			if (!f) return;
+			var reader = new FileReader();
+			reader.onload = function () {
+				var b64 = String(reader.result).split(',')[1] || '';
+				var meta = document.querySelector('meta[name="csrf-token"]');
+				fetch('/api/self/kartu', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'X-CSRF-Token': meta ? meta.content : ''
+					},
+					body: JSON.stringify({
+						filename: (f.name || 'kartu-pegawai.png').replace(/[^a-zA-Z0-9._-]/g, '_'),
+						contentType: f.type || 'image/png',
+						base64: b64
+					})
+				}).then(function (r) { return r.json(); }).then(function (j) {
+					if (j.ok) { location.reload(); }
+					else kepToast('Upload kartu gagal: ' + (j.error || 'unknown'));
+				}).catch(function (err) { kepToast('Upload kartu gagal: ' + err.message); });
+			};
+			reader.readAsDataURL(f);
+		});
+	}
 })();
 </script>

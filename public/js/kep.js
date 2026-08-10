@@ -287,7 +287,11 @@
     } else if (act === 'edit') {
       openEditModal(actBtn, record);
     } else if (act === 'detail') {
-      openDetailModal(tr);
+      if (tableModul(tid) === 'presensi' && record.file) {
+        window.open(record.file, '_blank');
+      } else {
+        openDetailModal(tr);
+      }
     } else if (act === 'cetak') {
       window.print();
     } else if (act === 'profil') {

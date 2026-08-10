@@ -1,6 +1,6 @@
 <% if (member && member.role == 'administrator') { %>
     <% function roleBadge(role) {
-         var map = { administrator: 'badge-role-admin', manager: 'badge-role-manager', staff: 'badge-role-staff' };
+         var map = { administrator: 'badge-role-admin', staff: 'badge-role-staff' };
          var cls = map[role] || 'badge-role-staff';
          var label = role.charAt(0).toUpperCase() + role.slice(1);
          return '<span class="badge-tm ' + cls + '">' + label + '</span>';

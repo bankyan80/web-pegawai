@@ -3,7 +3,7 @@
 <% } else { %>
     <% var idedit = query.idedit || ''; %>
     <% var rs = typeof rs !== 'undefined' ? rs : {}; %>
-    <% var ar_role = { 'Administrator': 'administrator', 'Manager': 'manager', 'Staff': 'staff' }; %>
+    <% var ar_role = { 'Administrator': 'administrator', 'Staff': 'staff' }; %>
     <% var dis = idedit ? 'readonly' : ''; %>
     <h3><i class="fas fa-user-cog text-primary mr-2"></i><%= idedit ? 'Ubah User' : 'Tambah User' %></h3>
     <form method="POST" action="/controller/user" class="mt-4">
