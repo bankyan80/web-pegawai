@@ -113,19 +113,28 @@
 	}
 
 	// Fetch JSON dengan retry otomatis untuk 5xx/504 (mis. Supabase/Vercel
-	// sesaat lambat saat cold start). Upaya terakhir tetap mengembalikan JSON.
+	// sesaat lambat saat cold start) DAN batas waktu fetch (AbortController).
+	// Tanpa batas waktu, koneksi yang menggantung membuat Card Box tampil
+	// "Memuat…" / skeleton selamanya. Upaya terakhir tetap mengembalikan JSON.
 	function fetchJson(url, tries) {
 		var maxTries = tries || 3;
+		var TIMEOUT = 12000;
 		function delay(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 		function attempt(n) {
-			return fetch(url, { headers: { 'Accept': 'application/json' } })
+			var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+			var opts = { headers: { 'Accept': 'application/json' } };
+			if (ctrl) opts.signal = ctrl.signal;
+			var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, TIMEOUT);
+			return fetch(url, opts)
 				.then(function (res) {
+					clearTimeout(timer);
 					if (res.status >= 500 && n < maxTries) {
 						return delay(600 * n).then(function () { return attempt(n + 1); });
 					}
 					return res.json().catch(function () { return { ok: false, error: 'HTTP ' + res.status }; });
 				})
 				.catch(function (err) {
+					clearTimeout(timer);
 					if (n < maxTries) return delay(600 * n).then(function () { return attempt(n + 1); });
 					throw err;
 				});
@@ -782,6 +791,8 @@
 
 	// Render sheet dari cache bila tersedia, atau muat (lazy) lalu cache.
 	// Bila sedang dimuat, gunakan promise yang sama (tidak ada request ganda).
+	// Ada penjaga waktu: bila data tak kunjung tiba, tampilkan kotak error
+	// (bukan "Memuat…" selamanya) saat koneksi/API menggantung.
 	function renderSheet(key) {
 		if (!RENDERERS[key]) return;
 		if (BASE_SHEETS[key]) {
@@ -794,14 +805,21 @@
 			rendererNow(key);
 			return;
 		}
+		var guard = null;
 		if (!PENDING[key]) {
-			PENDING[key] = fetchJson('/api/dashboard/' + key).then(function (json) {
+			guard = setTimeout(function () {
+				PENDING[key] = null;
+				if (CUR_SHEET === key) $('#sheetBody').innerHTML = errBox();
+			}, 20000);
+			PENDING[key] = fetchJson('/api/dashboard/' + key, 2).then(function (json) {
+				clearTimeout(guard);
 				PENDING[key] = null;
 				if (!json.ok || json.data == null) throw new Error(json.error || 'Gagal memuat data');
 				CACHE[key] = json.data;
 				persistState();
 				return CACHE[key];
 			}, function (err) {
+				clearTimeout(guard);
 				PENDING[key] = null;
 				throw err;
 			});
@@ -1016,20 +1034,31 @@
 		var saved = inline ? null : loadPersisted();
 		if (inline) {
 			DATA = window.DASH_DATA;
-			hydrateCache();
-			renderHeader();
-			renderInfo();
-			showContent();
-			persistState();
+			try {
+				hydrateCache();
+				renderHeader();
+				renderInfo();
+				showContent();
+				persistState();
+			} catch (e) {
+				console.error('Inline render:', e);
+				showError();
+			}
 			openSheetByHash();
 			return;
 		}
 		if (saved) {
 			DATA = saved.data;
-			hydrateCache();
-			renderHeader();
-			renderInfo();
-			showContent();
+			try {
+				hydrateCache();
+				renderHeader();
+				renderInfo();
+				showContent();
+			} catch (e) {
+				console.error('Saved render:', e);
+				showError();
+				return;
+			}
 			openSheetByHash();
 			refreshBase().then(function (ok) {
 				if (!ok) return;
